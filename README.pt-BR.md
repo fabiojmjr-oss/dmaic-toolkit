@@ -19,7 +19,7 @@ escritos. Ver [`DISCLAIMER.md`](DISCLAIMER.md).
 | Módulo | Fase | Decisão que habilita |
 | --- | --- | --- |
 | [`dmaic.measure`](src/dmaic/measure/README.md) | Measure | Este sistema de medição pode ser usado, o que o corrigiria, e ele sustenta a especificação? |
-| [`dmaic.analyze`](src/dmaic/analyze/README.md) | Analyze | De quanto dado este teste precisa, e o que um resultado não-significativo de fato descartou? |
+| [`dmaic.analyze`](src/dmaic/analyze/README.md) | Analyze | De quanto dado este teste precisa, o que um resultado não-significativo descartou, e o teste mantém a taxa de erro que alega? |
 
 O [`docs/ROADMAP.md`](docs/ROADMAP.md) lista as fases ainda não construídas, e explica por que a
 fase Control é deliberadamente mais estreita do que parece.
@@ -92,19 +92,60 @@ dele, e em `p = α = 0,05` o poder observado é 0,5035 — convergindo para um m
 cresce (0,5114 em n=10, 0,5002 em n=500). Então "tivemos só 48% de poder" é outra forma de escrever
 "p ficou pouco acima de 0,05", e citar um para explicar o outro é circular.
 
+### Onda 3 — as premissas por trás do p-valor
+
+Dois grupos sorteados com a mesma média, então **toda rejeição abaixo é erro tipo I** e a taxa
+nominal é 5% por construção. 20.000 réplicas.
+
+| Cenário | t agrupado | Welch | fluxograma | Mann-Whitney |
+| --- | --- | --- | --- | --- |
+| normal, dispersão igual, n 20 / 20 | 0,0479 | 0,0477 | 0,0478 | 0,0481 |
+| normal, dispersão 1:3, n 10 / 30 | **0,0038** | 0,0478 | 0,0432 | 0,0150 |
+| normal, dispersão 3:1, n 10 / 30 | **0,2130** | 0,0507 | **0,0628** | **0,1270** |
+| assimétrica, dispersão 3:1, n 10 / 30 | **0,2331** | **0,1112** | **0,1454** | **0,2850** |
+
+**O fluxograma ensinado — testar normalidade, testar variância, escolher conforme — é
+mensuravelmente pior que pular os checks e usar Welch.** 6,28% contra 5,07% no caso que importa,
+porque ele herda a inflação do teste agrupado sempre que o pré-teste de variância não dispara. Um
+pré-teste não protege um procedimento, ele o lava.
+
+**O t agrupado erra nas duas direções, e qual delas depende de contabilidade.** 21,30% com a
+dispersão maior no grupo menor; 0,38% quando a mesma desigualdade está invertida. Nada no processo
+muda — só qual grupo por acaso era o maior. O Welch mantém 4,77% a 5,07% em todo cenário normal e
+não custa nada sob igualdade.
+
+**Recorrer a um teste de postos piora.** Mann-Whitney roda a 12,70% aqui e 6,63% mesmo com grupos
+balanceados: ele não é um teste t livre de distribuição, testa outra hipótese, e dispersão desigual
+o quebra também.
+
+**E o check de normalidade é menos informativo exatamente onde mais importa.** Em cinco por grupo
+uma assimetria real é detectada 16,3% das vezes, então o check aprova — e é ali que o teste está
+mais distorcido, a 2,40%. Em trezentos ela é detectada sempre, então o check reprova e manda o
+projeto para um teste de postos — e ali o teste já está perfeito, a 5,22%. O veredito é
+anticorrelacionado com a necessidade dele, porque as duas coisas são consequência de n pequeno.
+
+**O diagnóstico não consegue ver o que quebra o teste.** A assimetria populacional é 3,2629; em dez
+observações o teto algébrico de uma assimetria amostral é 2,667, então o estimador não consegue
+reportar a verdade nem em princípio, e a sinalização dispara 39,8% das vezes. O diagnóstico de
+dispersão falha do mesmo jeito: sorteada de uma razão real de exatamente 3,00, a razão amostral tem
+90% central de 1,152 a 6,762. Juntos, a sinalização de regime pega o caso ruim **75,0% das vezes** —
+um erro em quatro, e é por isso que o `compare_means` usa Welch sem condição e devolve os checks
+como evidência, não como portão.
+
 ## Exemplos
 
 | Script | O que mostra |
 | --- | --- |
 | [`01_is_the_gage_good_enough.py`](examples/01_is_the_gage_good_enough.py) | Três gages, três vereditos, e os dois critérios de aceitação discordando em um deles |
 | [`02_could_the_pilot_have_found_it.py`](examples/02_could_the_pilot_have_found_it.py) | Três pilotos, três resultados não-significativos, três efeitos reais |
+| [`03_which_test_and_can_it_be_trusted.py`](examples/03_which_test_and_can_it_be_trusted.py) | O fluxograma ensinado, medido contra sempre usar Welch. Ele perde |
 
 ## Verificação
 
-**74 testes, 93% de cobertura de statements, separados por custo.** 66 deles rodam em cerca de
+**95 testes, 93% de cobertura de statements, separados por custo.** 83 deles rodam em cerca de
 quatro segundos e meio, e a sequência inteira do `make check` — linters, tipos, cobertura e tudo —
-em menos de seis. É isso que barra um push. Os 8 restantes re-derivam toda figura citada em um
-README e rodam todo script de exemplo, em menos de dois segundos.
+em menos de sete. É isso que barra um push. Os 12 restantes re-derivam toda figura citada em um
+README e rodam todo script de exemplo, em cerca de onze segundos.
 
 A ANOVA do gage é verificada contra um desenho 2×2×2 cujas somas de quadrados são inteiras (242,
 50, 2 e 8, fechando em 302), e não apenas contra a própria saída. Verificações independentes de
@@ -119,6 +160,12 @@ o resultado da t não-central é conferido contra um recálculo a partir das pri
 contra a própria saída do wrapper. Toda tabela do gerador também é fixada — adicionar a onda 2
 deixou o estudo de gage da onda 1 byte a byte idêntico, que é para isso que serve a disciplina de
 ordem de fluxo.
+
+As simulações são ancoradas nos próprios casos de controle, que é a única forma de testar um
+resultado de Monte Carlo: onde toda premissa vale, cada um dos quatro procedimentos tem de devolver
+os 5% nominais, e o check de normalidade em dado genuinamente normal tem de disparar exatamente no
+próprio alfa. Se qualquer dos controles derivar, toda outra figura daquela tabela está errada na
+mesma direção e nenhuma delas de forma detectável.
 
 ## Relacionado
 

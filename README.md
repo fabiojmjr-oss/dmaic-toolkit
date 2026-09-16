@@ -18,7 +18,7 @@ table is produced by a seeded generator whose parameters are written down. See
 | Module | Phase | Decision it enables |
 | --- | --- | --- |
 | [`dmaic.measure`](src/dmaic/measure/README.md) | Measure | Can this measurement system be used, what would fix it, and can it support the specification? |
-| [`dmaic.analyze`](src/dmaic/analyze/README.md) | Analyze | How much data does this test need, and what did a non-significant result actually rule out? |
+| [`dmaic.analyze`](src/dmaic/analyze/README.md) | Analyze | How much data does this test need, what did a non-significant result rule out, and does the test hold the error rate it claims? |
 
 [`docs/ROADMAP.md`](docs/ROADMAP.md) lists the phases not yet built, and says why the Control
 phase is deliberately narrower than it looks.
@@ -92,19 +92,60 @@ it, and at `p = α = 0.05` the observed power is 0.5035 — converging on one ha
 (0.5114 at n=10, 0.5002 at n=500). So "we only had 48% power" is another way of writing "p was
 just above 0.05", and citing one to explain the other is circular.
 
+### Wave 3 — the assumptions behind the p-value
+
+Two groups drawn with the same mean, so **every rejection below is a type I error** and the
+nominal rate is 5% by construction. 20,000 replications.
+
+| Scenario | pooled t | Welch | flowchart | Mann-Whitney |
+| --- | --- | --- | --- | --- |
+| normal, equal spread, n 20 / 20 | 0.0479 | 0.0477 | 0.0478 | 0.0481 |
+| normal, spread 1:3, n 10 / 30 | **0.0038** | 0.0478 | 0.0432 | 0.0150 |
+| normal, spread 3:1, n 10 / 30 | **0.2130** | 0.0507 | **0.0628** | **0.1270** |
+| skewed, spread 3:1, n 10 / 30 | **0.2331** | **0.1112** | **0.1454** | **0.2850** |
+
+**The taught flowchart — check normality, check variance, choose accordingly — is measurably
+worse than skipping the checks and using Welch.** 6.28% against 5.07% in the case that matters,
+because it inherits the pooled test's inflation whenever the variance pre-test happens not to
+fire. A pre-test does not protect a procedure, it launders it.
+
+**The pooled t-test is wrong in both directions and which one depends on bookkeeping.** 21.30%
+with the wider spread on the smaller group; 0.38% when the same inequality sits the other way
+round. Nothing about the process changes — only which group happened to be larger. Welch holds
+4.77% to 5.07% across every normal scenario and costs nothing under equality.
+
+**Reaching for a rank test makes it worse.** Mann-Whitney runs at 12.70% here and 6.63% even with
+balanced groups: it is not a distribution-free t-test, it tests a different hypothesis, and
+unequal spread breaks it too.
+
+**And the normality check is least informative exactly where it matters most.** At five per group
+a real skew is detected 16.3% of the time, so the check passes — and that is where the test is
+most distorted, at 2.40%. At three hundred it is detected every time, so the check fails and sends
+the project to a rank test — and there the test is already fine, at 5.22%. The verdict is
+anti-correlated with the need for it, because both facts are consequences of small n.
+
+**The diagnostic cannot see what breaks the test.** The population skewness is 3.2629; at ten
+observations the algebraic ceiling on a sample skewness is 2.667, so the estimator cannot report
+the truth even in principle, and the flag fires 39.8% of the time. The spread diagnostic fails the
+same way: drawn from a true ratio of exactly 3.00, the sample ratio's middle 90% runs from 1.152
+to 6.762. Taken together the regime flag catches the bad case **75.0% of the time** — one miss in
+four, which is why `compare_means` uses Welch unconditionally and returns the checks as evidence
+rather than as a gate.
+
 ## Examples
 
 | Script | What it shows |
 | --- | --- |
 | [`01_is_the_gage_good_enough.py`](examples/01_is_the_gage_good_enough.py) | Three gages, three verdicts, and the two acceptance criteria disagreeing on one of them |
 | [`02_could_the_pilot_have_found_it.py`](examples/02_could_the_pilot_have_found_it.py) | Three pilots, three non-significant results, three real effects |
+| [`03_which_test_and_can_it_be_trusted.py`](examples/03_which_test_and_can_it_be_trusted.py) | The taught flowchart, measured against always using Welch. It loses |
 
 ## Verification
 
-**74 tests, 93% statement coverage, split by cost.** 66 of them run in about four and a half
+**95 tests, 93% statement coverage, split by cost.** 83 of them run in about four and a half
 seconds, and the whole `make check` sequence — linters, type check, coverage and all — in under
-six. That is what a push is gated on. The remaining 8 re-derive every figure quoted in a README
-and run every example script, in under two seconds.
+seven. That is what a push is gated on. The remaining 12 re-derive every figure quoted in a README
+and run every example script, in about eleven seconds.
 
 The gage ANOVA is verified against a 2×2×2 design whose sums of squares are integers (242, 50, 2
 and 8, adding to 302), not only against its own output. Independent property checks confirm that
@@ -118,6 +159,12 @@ level exactly, the detectable difference round-trips back to the power it was so
 noncentral-t result is checked against a recomputation from scipy primitives rather than against
 the wrapper's own output. Every generator table is pinned too — adding wave 2 left wave 1's gage
 study byte-identical, which is what the stream-order discipline is for.
+
+The simulations are anchored on their own control cases, which is the only way to test a Monte
+Carlo result: where every assumption holds, each of the four procedures has to return the nominal
+5%, and the normality check on genuinely normal data has to fire at exactly its own alpha. If
+either control drifts, every other figure in that table is wrong in the same direction and none of
+them detectably so.
 
 ## Related
 

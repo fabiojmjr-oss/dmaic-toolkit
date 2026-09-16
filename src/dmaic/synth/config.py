@@ -186,3 +186,117 @@ TRIALS = (
         sd=float("nan"),
     ),
 )
+
+
+@dataclass(frozen=True)
+class ComparisonProfile:
+    """Two groups someone wants compared, and the regime the comparison falls into.
+
+    Attributes:
+        comparison: Label for the question being asked.
+        question: What the comparison is for, in words.
+        unit: Unit of measure.
+        first: Name of the first group.
+        second: Name of the second group.
+        n_first: Observations in the first group.
+        n_second: Observations in the second group.
+        mean_first: Population mean of the first group.
+        mean_second: Population mean of the second group. Equal to ``mean_first`` where the
+            comparison is drawn under the null, so that a rejection is a known false positive.
+        sd_first: Population spread of the first group.
+        sd_second: Population spread of the second group.
+        shape: ``"normal"`` or ``"skewed"``.
+        regime: What makes this comparison instructive - recorded so the example does not have
+            to rediscover it, and so a change to the parameters that moves a comparison out of
+            its regime shows up as a broken test rather than as quieter prose.
+    """
+
+    comparison: str
+    question: str
+    unit: str
+    first: str
+    second: str
+    n_first: int
+    n_second: int
+    mean_first: float
+    mean_second: float
+    sd_first: float
+    sd_second: float
+    shape: str
+    regime: str
+
+
+# Four comparisons, chosen so the taught flowchart and Welch's test disagree in different ways.
+# Two are drawn under the null - the group means are identical - so any significant result is a
+# false positive that can be named as one rather than argued about.
+COMPARISONS = (
+    # The clean case. Everything agrees, which is what makes it the control: a module that
+    # disagreed with the flowchart everywhere would be suspect.
+    ComparisonProfile(
+        comparison="TURNO-A vs TURNO-B",
+        question="os dois turnos produzem no mesmo tempo de ciclo?",
+        unit="min",
+        first="TURNO-A",
+        second="TURNO-B",
+        n_first=25,
+        n_second=25,
+        mean_first=100.0,
+        mean_second=100.0,
+        sd_first=6.0,
+        sd_second=6.0,
+        shape="normal",
+        regime="balanced and normal - every procedure holds its level",
+    ),
+    # Unequal spread on unequal sizes, with the wider spread on the smaller group: the case
+    # where the pooled test's false-positive rate is four times its nominal level.
+    ComparisonProfile(
+        comparison="LINHA-1 vs LINHA-2",
+        question="a linha nova reduziu o tempo de ciclo?",
+        unit="min",
+        first="LINHA-1",
+        second="LINHA-2",
+        n_first=12,
+        n_second=36,
+        mean_first=100.0,
+        mean_second=100.0,
+        sd_first=9.0,
+        sd_second=3.0,
+        shape="normal",
+        regime="wider spread on the smaller group - the pooled test inflates",
+    ),
+    # The mirror image: the wider spread on the larger group, where the pooled test becomes
+    # absurdly conservative instead. Same violated assumption, opposite consequence.
+    ComparisonProfile(
+        comparison="CELULA-X vs CELULA-Y",
+        question="a celula reformada mudou o tempo de ciclo?",
+        unit="min",
+        first="CELULA-X",
+        second="CELULA-Y",
+        n_first=12,
+        n_second=36,
+        mean_first=100.0,
+        mean_second=100.0,
+        sd_first=3.0,
+        sd_second=9.0,
+        shape="normal",
+        regime="wider spread on the larger group - the pooled test goes conservative",
+    ),
+    # Skew, unequal spread and unequal sizes together, with a real difference in the means. The
+    # regime where no standard procedure holds its level, so the p-value cannot carry the claim
+    # whichever test produces it.
+    ComparisonProfile(
+        comparison="FORN-X vs FORN-Y",
+        question="o fornecedor alternativo entrega mais rapido?",
+        unit="dias",
+        first="FORN-X",
+        second="FORN-Y",
+        n_first=10,
+        n_second=30,
+        mean_first=14.0,
+        mean_second=12.0,
+        sd_first=6.0,
+        sd_second=2.0,
+        shape="skewed",
+        regime="skew, unequal spread and unequal sizes - nothing holds its level",
+    ),
+)

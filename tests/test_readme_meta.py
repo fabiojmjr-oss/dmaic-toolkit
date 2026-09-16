@@ -98,14 +98,38 @@ def test_the_module_table_matches_the_package() -> None:
         assert listed == packages, f"{readme}: table lists {listed}, package has {packages}"
 
 
+def module_readmes() -> list[Path]:
+    """Every README under the package, including the per-topic ones a package may split into."""
+    return sorted((ROOT / "src" / "dmaic").rglob("README*.md"))
+
+
 def test_every_module_readme_is_bilingual() -> None:
     """One language edition going stale is the failure mode, so both are required to exist."""
-    for readme in (ROOT / "src" / "dmaic").rglob("README.md"):
+    found = module_readmes()
+    assert found, "no module READMEs found at all, which means this test is not testing anything"
+    for readme in found:
         text = readme.read_text(encoding="utf-8")
         assert "*[Português]" in text, f"{readme.relative_to(ROOT)} has no Portuguese section link"
         assert "*[English]" in text, f"{readme.relative_to(ROOT)} has no English section link"
         assert "## Assumptions and limitations" in text, readme.relative_to(ROOT)
         assert "## Premissas e limitações" in text, readme.relative_to(ROOT)
+
+
+def test_a_split_package_readme_links_its_parts() -> None:
+    """A topic document nothing points at is a document nobody finds.
+
+    The analyze package outgrew one README; this keeps the split navigable rather than letting
+    the extra documents become orphans the way three example scripts did in the sibling repo.
+    """
+    for readme in module_readmes():
+        if readme.name != "README.md":
+            continue
+        siblings = [
+            other.name for other in readme.parent.glob("README*.md") if other.name != "README.md"
+        ]
+        text = readme.read_text(encoding="utf-8")
+        for sibling in siblings:
+            assert sibling in text, f"{readme.relative_to(ROOT)} does not link {sibling}"
 
 
 def test_every_example_is_linked_from_both_readmes() -> None:
