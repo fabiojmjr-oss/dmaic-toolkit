@@ -9,6 +9,7 @@ import pandas as pd
 
 from .comparison import comparison_designs, group_comparisons
 from .config import SEED
+from .factorial import factorial_effects, factorial_runs
 from .gage import gage_studies, specifications
 from .trial import improvement_trials, trial_designs
 
@@ -24,6 +25,8 @@ class Dataset:
         trial_designs: One row per pilot, including the effect actually put into it.
         group_comparisons: One row per observation in a two-group comparison.
         comparison_designs: One row per comparison, including whether a difference exists.
+        factorial_runs: One row per run of a designed experiment, factors coded -1 and +1.
+        factorial_effects: One row per effect of each experiment, including the ones set to zero.
     """
 
     gage_studies: pd.DataFrame
@@ -32,6 +35,8 @@ class Dataset:
     trial_designs: pd.DataFrame
     group_comparisons: pd.DataFrame
     comparison_designs: pd.DataFrame
+    factorial_runs: pd.DataFrame
+    factorial_effects: pd.DataFrame
 
 
 def generate_dataset(seed: int = SEED) -> Dataset:
@@ -57,4 +62,7 @@ def generate_dataset(seed: int = SEED) -> Dataset:
         # Appended after the trials, so waves 1 and 2 are untouched by wave 3.
         group_comparisons=group_comparisons(rng),
         comparison_designs=comparison_designs(),
+        # Appended after the comparisons, so waves 1 to 3 are untouched by wave 4.
+        factorial_runs=factorial_runs(rng),
+        factorial_effects=factorial_effects(),
     )

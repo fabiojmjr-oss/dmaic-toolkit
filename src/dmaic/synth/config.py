@@ -300,3 +300,86 @@ COMPARISONS = (
         regime="skew, unequal spread and unequal sizes - nothing holds its level",
     ),
 )
+
+
+@dataclass(frozen=True)
+class FactorSetting:
+    """One factor of a designed experiment, and the two levels it was run at.
+
+    Attributes:
+        name: Factor name, as it appears in the run sheet.
+        unit: Unit of the factor's own setting, not of the response.
+        low: The low level, coded -1.
+        high: The high level, coded +1.
+    """
+
+    name: str
+    unit: str
+    low: float
+    high: float
+
+
+@dataclass(frozen=True)
+class FactorialProfile:
+    """One designed experiment, with the effects that are actually in the process declared.
+
+    Attributes:
+        process: Label for the experiment.
+        response: What was measured.
+        unit: Unit of the response.
+        settings: The factors, in the order the design's letters refer to them.
+        baseline: Mean response at the centre of the design.
+        true_effects: Effect of each term, keyed by the design's letters - ``"A"`` for a main
+            effect, ``"AB"`` for a two-factor interaction. An effect is the change in the
+            response from the low level to the high level, so the coefficient is half of it.
+            Terms left out are exactly zero.
+        noise_sd: Run-to-run standard deviation of the response.
+    """
+
+    process: str
+    response: str
+    unit: str
+    settings: tuple[FactorSetting, ...]
+    baseline: float
+    true_effects: tuple[tuple[str, float], ...]
+    noise_sd: float
+
+    @property
+    def factors(self) -> tuple[str, ...]:
+        """Factor names in letter order, for handing straight to a design constructor."""
+        return tuple(setting.name for setting in self.settings)
+
+
+# One experiment, four factors, and a truth chosen so the generator choice is what decides the
+# conclusion. Two factors do nothing at all: the cure time because the oven is already past the
+# point where longer helps, and the resin batch because it was only in the experiment to answer a
+# suspicion. Their being exactly zero is what makes a fraction's arithmetic visible - an effect
+# reported for either of them is entirely an artefact of the design, not a small real effect
+# mixed with noise.
+#
+# The interaction is the large one on purpose. Temperature and pressure together are worth more
+# than pressure alone, which is the ordinary situation a one-factor-at-a-time study cannot see,
+# and it is also exactly the term a resolution III half fraction hands to whichever factor its
+# generator happens to alias it with.
+FACTORIALS = (
+    FactorialProfile(
+        process="FORNO-CURA",
+        response="resistencia ao cisalhamento",
+        unit="MPa",
+        settings=(
+            FactorSetting(name="temperatura", unit="degC", low=150.0, high=180.0),
+            FactorSetting(name="pressao", unit="bar", low=2.0, high=4.0),
+            FactorSetting(name="tempo de cura", unit="min", low=20.0, high=40.0),
+            FactorSetting(name="lote de resina", unit="lote", low=1.0, high=2.0),
+        ),
+        baseline=40.0,
+        true_effects=(
+            ("A", 12.0),
+            ("B", 5.0),
+            ("C", 0.0),
+            ("D", 0.0),
+            ("AB", 8.0),
+        ),
+        noise_sd=1.5,
+    ),
+)

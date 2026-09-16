@@ -19,7 +19,7 @@ escritos. Ver [`DISCLAIMER.md`](DISCLAIMER.md).
 | Módulo | Fase | Decisão que habilita |
 | --- | --- | --- |
 | [`dmaic.measure`](src/dmaic/measure/README.md) | Measure | Este sistema de medição pode ser usado, o que o corrigiria, e ele sustenta a especificação? |
-| [`dmaic.analyze`](src/dmaic/analyze/README.md) | Analyze | De quanto dado este teste precisa, o que um resultado não-significativo descartou, e o teste mantém a taxa de erro que alega? |
+| [`dmaic.analyze`](src/dmaic/analyze/README.md) | Analyze | De quanto dado este teste precisa, ele mantém a taxa de erro que alega, e o experimento consegue separar os efeitos sobre os quais está sendo perguntado? |
 
 O [`docs/ROADMAP.md`](docs/ROADMAP.md) lista as fases ainda não construídas, e explica por que a
 fase Control é deliberadamente mais estreita do que parece.
@@ -132,6 +132,48 @@ dispersão falha do mesmo jeito: sorteada de uma razão real de exatamente 3,00,
 um erro em quatro, e é por isso que o `compare_means` usa Welch sem condição e devolve os checks
 como evidência, não como portão.
 
+### Onda 4 — planejamento de experimentos
+
+Um experimento sintético de forno de cura: quatro fatores, dezesseis corridas, resistência ao
+cisalhamento em MPa. O gerador declara o que existe no processo, e **dois dos quatro fatores são
+exatamente zero** — tempo de cura e lote de resina. As dezesseis corridas são medidas uma vez;
+cada desenho abaixo lê as linhas que teria rodado, então nada varia entre eles além de quais das
+mesmas corridas foram mantidas.
+
+| Termo | Real | 2⁴ completo, 16 corridas | 2^(4-1) `D=ABC`, 8 corridas | 2^(4-1) `D=AB`, 8 corridas |
+| --- | --- | --- | --- | --- |
+| A temperatura | +12,00 | 12,5810 | 11,8174 | 13,1256 |
+| B pressao | +5,00 | 4,9727 | 4,5785 | 5,8547 |
+| C tempo de cura | 0,00 | 0,2853 | −0,3577 | −0,4082 |
+| D lote de resina | 0,00 | 1,5494 | 0,5307 | **9,4067** |
+| AB | +8,00 | 7,8573 | **7,7678** | 9,4067 |
+| Resolução | | completo | IV | **III** |
+
+**Um desenho resolução III não perde uma interação, ele a premia a um fator que não faz nada.** O
+lote de resina tem efeito exatamente zero e volta em 9,4067 — a segunda maior cifra do estudo,
+1,88 vez o efeito real da pressão, e 2,63 vezes o menor efeito que oito corridas conseguiriam
+detectar. Não é marginal e não parece ruído. As duas frações custam as mesmas oito corridas, leem o
+mesmo experimento, e ordenam os fatores de forma diferente: `D=ABC` dá A, B, D, C e `D=AB` dá A,
+**D**, B, C. Só o gerador muda, e ele é de graça.
+
+**Alias é uma soma exata, não ruído adicional.** A estimativa da fração é a soma aritmética das
+estimativas que o desenho completo dá aos termos aliasados — `D + AB` é 1,5494 + 7,8573 = 9,4067,
+reproduzindo a 5,3e-15 em todo par de alias das duas frações. É por isso que `D=ABC` funciona: ele
+também soma dois números, e um deles por acaso é zero. Ele recupera a interação em 7,7678 contra
+os 7,8573 do desenho completo, uma diferença de 0,0895 MPa num efeito de 8, com metade das
+corridas.
+
+**Limite de detecção protege contra ruído e não diz nada sobre viés.** Na dispersão corrida a
+corrida deste processo, 1,5 MPa, oito corridas veem 3,5711 MPa e dezesseis veem 2,2600. A maior
+estimativa puramente espúria do desenho completo é 1,5494, abaixo do limite, então um projeto
+corretamente a deixaria em paz. O falso 9,4067 está a 2,63 vezes o limite, porque é um efeito real
+na coluna errada e um limite de detecção não tem opinião sobre colunas.
+
+**E a resolução vem da relação definidora, não dos geradores.** `D=ABC` e `E=BCD` são os dois
+geradores de quatro letras; as palavras deles multiplicam para `AE`, então dois fatores
+compartilham uma coluna e o desenho é resolução II. O `fractional_factorial` recusa construí-lo em
+vez de devolver uma folha de corridas que parece correta.
+
 ## Exemplos
 
 | Script | O que mostra |
@@ -139,13 +181,14 @@ como evidência, não como portão.
 | [`01_is_the_gage_good_enough.py`](examples/01_is_the_gage_good_enough.py) | Três gages, três vereditos, e os dois critérios de aceitação discordando em um deles |
 | [`02_could_the_pilot_have_found_it.py`](examples/02_could_the_pilot_have_found_it.py) | Três pilotos, três resultados não-significativos, três efeitos reais |
 | [`03_which_test_and_can_it_be_trusted.py`](examples/03_which_test_and_can_it_be_trusted.py) | O fluxograma ensinado, medido contra sempre usar Welch. Ele perde |
+| [`04_the_generator_decides_the_conclusion.py`](examples/04_the_generator_decides_the_conclusion.py) | Um experimento, três desenhos, e um fator que não faz nada reportado como o segundo maior |
 
 ## Verificação
 
-**95 testes, 93% de cobertura de statements, separados por custo.** 83 deles rodam em cerca de
+**124 testes, 94% de cobertura de statements, separados por custo.** 106 deles rodam em cerca de
 quatro segundos e meio, e a sequência inteira do `make check` — linters, tipos, cobertura e tudo —
-em menos de sete. É isso que barra um push. Os 12 restantes re-derivam toda figura citada em um
-README e rodam todo script de exemplo, em cerca de onze segundos.
+em menos de sete. É isso que barra um push. Os 18 restantes re-derivam toda figura citada em um
+README e rodam todo script de exemplo, em cerca de dez segundos.
 
 A ANOVA do gage é verificada contra um desenho 2×2×2 cujas somas de quadrados são inteiras (242,
 50, 2 e 8, fechando em 302), e não apenas contra a própria saída. Verificações independentes de
@@ -160,6 +203,13 @@ o resultado da t não-central é conferido contra um recálculo a partir das pri
 contra a própria saída do wrapper. Toda tabela do gerador também é fixada — adicionar a onda 2
 deixou o estudo de gage da onda 1 byte a byte idêntico, que é para isso que serve a disciplina de
 ordem de fluxo.
+
+A aritmética de desenho é conferida contra um 2² cujos efeitos se leem direto de quatro números
+(respostas 10, 20, 30, 60 dão A = 30, B = 20, AB = 10), contra a ortogonalidade de toda coluna até
+cinco fatores, e contra a identidade da soma exata: a estimativa de uma fração tem de igualar a
+soma das estimativas que o desenho completo dá aos termos aliasados, e iguala a 5,3e-15 em vez de
+a uma tolerância. As duas estimativas de um par aliasado são verificadas como **idênticas** e não
+como próximas, porque são a mesma coluna e qualquer diferença significaria contraste errado.
 
 As simulações são ancoradas nos próprios casos de controle, que é a única forma de testar um
 resultado de Monte Carlo: onde toda premissa vale, cada um dos quatro procedimentos tem de devolver
