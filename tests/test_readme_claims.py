@@ -154,6 +154,138 @@ def test_the_hand_computed_anova_quoted_in_the_readme(balanced) -> None:
 
 
 @pytest.mark.slow
+def test_the_three_pilots_all_missed_a_real_effect(full: Dataset) -> None:
+    """The trial table in the module README and both root READMEs.
+
+    The load-bearing claim is not any single figure: it is that all three studies returned a
+    non-significant result and all three had a real effect. That is pinned as a conjunction, so
+    a change that rescued one of them would break the build rather than quietly weaken the point.
+    """
+    from scipy import stats
+
+    from dmaic.analyze import (
+        detectable_difference,
+        power_two_means,
+        power_two_proportions,
+        sample_size_two_means,
+        sample_size_two_proportions,
+    )
+
+    designs = full.trial_designs.set_index("trial")
+    expected = {
+        # trial: (observed, p_value, power_for_truth, n_needed)
+        "PILOTO-CICLO": (-0.2917, 0.9234, 0.2456, 143),
+        "PILOTO-SETUP": (-2.7709, 0.2345, 0.7905, 6),
+        "PILOTO-REFUGO": (-0.0350, 0.2152, 0.1702, 1568),
+    }
+    for trial, (observed, p_value, power, needed) in expected.items():
+        group = full.improvement_trials[full.improvement_trials["trial"] == trial]
+        baseline = group.loc[group["arm"] == "baseline", "value"].to_numpy()
+        improved = group.loc[group["arm"] == "improved", "value"].to_numpy()
+        n = int(designs.loc[trial, "n_per_arm"])
+        truth = float(designs.loc[trial, "true_effect"])
+
+        assert float(improved.mean() - baseline.mean()) == pytest.approx(observed, abs=5e-5), trial
+        if designs.loc[trial, "kind"] == "binary":
+            control = float(designs.loc[trial, "baseline"])
+            table = [
+                [baseline.sum(), n - baseline.sum()],
+                [improved.sum(), n - improved.sum()],
+            ]
+            assert float(stats.chi2_contingency(table).pvalue) == pytest.approx(p_value, abs=5e-5)
+            assert power_two_proportions(n, control, control + truth) == pytest.approx(
+                power, abs=5e-5
+            )
+            assert sample_size_two_proportions(control, control + truth).n_per_group == needed
+        else:
+            sd = float(designs.loc[trial, "sd"])
+            assert float(stats.ttest_ind(improved, baseline).pvalue) == pytest.approx(
+                p_value, abs=5e-5
+            )
+            assert power_two_means(n, truth, sd) == pytest.approx(power, abs=5e-5)
+            assert sample_size_two_means(abs(truth), sd).n_per_group == needed
+
+        # The conjunction: not significant, and yet a real effect was there to be found.
+        assert p_value > 0.05, trial
+        assert truth != 0.0, trial
+        # And every one of them ran less than the sample it needed.
+        assert n < needed, trial
+
+    # PILOTO-CICLO's detectable difference, twice its own effect and then some.
+    cycle_reach = detectable_difference(30, 12.0)
+    assert cycle_reach == pytest.approx(8.8275, abs=5e-5)
+    assert cycle_reach > 2 * abs(float(designs.loc["PILOTO-CICLO", "true_effect"]))
+    # PILOTO-REFUGO observed a bigger improvement than the one that existed and still failed.
+    assert abs(-0.0350) > abs(float(designs.loc["PILOTO-REFUGO", "true_effect"]))
+    assert pytest.approx(7.84, abs=5e-3) == 1568 / 200
+
+
+@pytest.mark.slow
+def test_the_normal_approximation_table_reproduces() -> None:
+    """The formula-on-the-wall table, including the claim that it is harmless in the middle."""
+    from dmaic.analyze import (
+        DEFAULT_POWER,
+        power_two_means,
+        sample_size_normal_approximation,
+        sample_size_two_means,
+    )
+
+    expected = {
+        # d: (exact n, formula n, power the formula delivers)
+        2.00: (6, 4, 0.6569),
+        1.50: (9, 7, 0.7313),
+        1.00: (17, 16, 0.7814),
+        0.50: (64, 63, 0.7952),
+        0.33: (146, 145, 0.7997),
+        0.10: (1571, 1570, 0.7998),
+    }
+    for effect, (exact, formula, delivered) in expected.items():
+        assert sample_size_two_means(effect, 1.0).n_per_group == exact, effect
+        assert sample_size_normal_approximation(effect, 1.0) == formula, effect
+        assert power_two_means(formula, effect, 1.0) == pytest.approx(delivered, abs=5e-5), effect
+
+    # The published nuance: off by one per group through the practical range, and only material
+    # at an effect so large the study is tiny.
+    for effect in (1.00, 0.50, 0.33, 0.10):
+        assert expected[effect][0] - expected[effect][1] == 1
+        assert expected[effect][2] > DEFAULT_POWER - 0.02
+    assert expected[2.00][2] < 0.70
+
+
+@pytest.mark.slow
+def test_observed_power_is_a_function_of_the_p_value() -> None:
+    """The circularity table, and the convergence on one half at the boundary."""
+    from scipy import optimize
+
+    from dmaic.analyze import DEFAULT_ALPHA, observed_power_is_circular
+
+    expected = {
+        2.0: (0.5212, 0.0973),
+        4.0: (0.2018, 0.2456),
+        6.0: (0.0577, 0.4779),
+        6.2: (0.0501, 0.5032),
+        8.0: (0.0124, 0.7187),
+        12.0: (0.0003, 0.9677),
+    }
+    for observed, (p_value, power) in expected.items():
+        got_power, got_p = observed_power_is_circular(30, observed, 12.0)
+        assert got_p == pytest.approx(p_value, abs=5e-5), observed
+        assert got_power == pytest.approx(power, abs=5e-5), observed
+
+    boundaries = {10: 0.5114, 30: 0.5035, 100: 0.5010, 500: 0.5002}
+    for n, at_boundary in boundaries.items():
+        effect = optimize.brentq(
+            lambda delta, n=n: observed_power_is_circular(n, delta, 12.0)[1] - DEFAULT_ALPHA,
+            1e-9,
+            200.0,
+        )
+        power, _ = observed_power_is_circular(n, effect, 12.0)
+        assert power == pytest.approx(at_boundary, abs=5e-5), n
+    # Which is the whole point: the figure converges on one half and says nothing else.
+    assert list(boundaries.values()) == sorted(boundaries.values(), reverse=True)
+
+
+@pytest.mark.slow
 def test_every_example_runs_and_prints_something() -> None:
     """A broken example is a broken README."""
     import runpy
@@ -163,7 +295,7 @@ def test_every_example_runs_and_prints_something() -> None:
 
     root = Path(__file__).resolve().parents[1]
     scripts = sorted((root / "examples").glob("*.py"))
-    assert len(scripts) == 1
+    assert len(scripts) == 2
 
     for script in scripts:
         captured, sys.stdout = sys.stdout, StringIO()
