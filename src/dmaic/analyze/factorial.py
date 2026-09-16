@@ -79,7 +79,9 @@ def _all_words(k: int) -> tuple[str, ...]:
 
 def _column(runs: np.ndarray, word: str) -> np.ndarray:
     """The contrast column of an effect: the elementwise product of its factor columns."""
-    column = np.ones(len(runs), dtype=int)
+    # Annotated because the numpy stubs shipped for older interpreters give np.ones a
+    # one-dimensional shape type, which the elementwise product then widens.
+    column: np.ndarray = np.ones(len(runs), dtype=int)
     for letter in word:
         column = column * runs[:, LETTERS.index(letter)]
     return column
