@@ -82,32 +82,99 @@ guessed at n = 70 to land in the "marginal" power band, which came out at 0.4993
 underneath; the verdict bands are now tested on the boundaries themselves rather than on my
 arithmetic about where a sample size falls.
 
-**Still to build in this phase:** hypothesis tests with their assumptions checked rather than
-assumed — normality, equal variance, and what to do when they fail. Unequal group sizes and the
-Welch case, which is a different calculation rather than a refinement of this one. And
-multiplicity, which nothing here corrects for.
+**Still to build in this phase:** unequal group sizes in the power calculation, which is a
+different calculation rather than a refinement of this one. And multiplicity, which nothing in
+the package corrects for.
 
-## Wave 3 — Analyze: design of experiments
+## Wave 3 — Analyze: the assumptions behind the p-value
+
+**Comparing two groups** *(complete —
+[`dmaic.analyze.compare`](../src/dmaic/analyze/README-compare.md))*. Welch's test as the default
+rather than the fallback, the assumption checks returned as evidence rather than consulted as a
+gate, and a simulator so a project can measure the procedure it intends to standardise on.
+
+The wave exists because the taught flowchart — check normality, check variance, choose
+accordingly — is measurably worse than skipping it, and the sample sizes where it is worst are the
+ones improvement projects actually collect. Every figure below comes from `type_one_error_rates`
+or `normality_test_tradeoff`, under the null, where the nominal rate is 5% by construction.
+
+- **The pooled t-test is wrong in both directions and which one depends on bookkeeping.** 21.30%
+  actual type I error with the wider spread on the smaller group; 0.38% when the same inequality
+  sits the other way round. Nothing about the process changes — only which group happened to be
+  larger. Welch holds 4.77% to 5.07% across every normal scenario and costs nothing under equality
+  (4.77% against the pooled test's 4.79%).
+- **The flowchart is strictly worse than always using Welch**, at 6.28% against 5.07%, because it
+  inherits the pooled test's inflation whenever the variance pre-test happens not to fire. A
+  pre-test does not protect a procedure, it launders it.
+- **Reaching for a rank test makes it worse.** Mann-Whitney runs at 12.70% with unbalanced groups
+  and 6.63% even balanced. It is not a distribution-free t-test; it tests a different hypothesis,
+  and unequal spread breaks it too. It is measured here and deliberately *not* wrapped as an API,
+  because offering it next to `compare_means` would invite the substitution the simulation argues
+  against.
+- **The normality check is least informative exactly where it matters most.** Detection of a real
+  skew and the cost of that skew move in opposite directions: 16.3% detected at five per group
+  where the test runs at 2.40%, and 100% detected at three hundred where the test is already at
+  5.22%. Both facts are consequences of small n, which is why they are anti-correlated.
+- **The diagnostic cannot see what breaks the test.** Population skewness 3.2629; the algebraic
+  ceiling on a sample skewness at ten observations is 2.667, so the estimator cannot report the
+  truth even in principle, and the flag fires 39.8% of the time. The spread diagnostic fails the
+  same way — drawn from a true ratio of exactly 3.00, the sample ratio's middle 90% runs 1.152 to
+  6.762 — and the combined regime flag catches the bad case 75.0% of the time. One miss in four,
+  documented as a limitation rather than sold as a safeguard.
+- **Two of the four synthetic comparisons are the ones the diagnostic gets wrong.** `LINHA-2` is
+  drawn normal and its sample skewness came out at −1.267 on 36 observations, flagging skew that is
+  not there; `FORN-X` is drawn from skewness 3.26 and came out at 1.075 on 10, missing the real
+  thing. And on `FORN-X vs FORN-Y` the pooled test returns p = 0.0019 against Welch's p = 0.0657 on
+  the same forty observations — a factor of **34.6**, with the pooled test reaching the right
+  answer for a reason the simulation shows it did not earn.
+
+**I reproduced the bug I was writing about, and the measurement caught it.** The
+`materially_skewed` flag first used a bare `abs(skewness) >= 1.0`. On genuinely normal data that
+fires at a rate depending entirely on n — 14.21% at ten observations, 1.38% at thirty-six — which
+is the same anti-correlation with usefulness the module criticises the normality test for.
+Requiring the estimate to clear two of its own standard errors as well caps the small-n end near
+alpha; above about twenty the absolute threshold binds again and the rate falls on its own, which
+is intended rather than a gap.
+
+**Three test expectations of mine were wrong rather than the code.** I asserted the exact skewness
+standard error exceeds the `sqrt(6/n)` approximation; it is the other way round, and by 12.7% at
+ten observations, so a criterion built on the approximation is stricter than intended rather than
+looser. I asserted the tradeoff's error column is monotone across all six sample sizes; above
+fifty it has arrived at alpha and only Monte Carlo noise separates the rows, so asserting
+monotonicity there was asserting that noise has a direction. And two draws I picked to demonstrate
+the unreliable regime landed on seeds where the diagnostic missed it — which is the 25% miss rate,
+met in practice before it was measured.
+
+**One reproducibility defect, twice.** Figures measured by iterating sample sizes from one shared
+generator move when the list of sizes changes; dropping `n=50` from a list silently moved every
+other row. Both affected tables now use a generator per sample size, so each figure depends only
+on `(n, seed)`.
+
+**Still to build in this phase:** more than two groups, where multiplicity stops being a footnote.
+Paired and blocked comparisons. And the regimes the simulation does not cover — heavy tails
+without skew, bimodality, and measurements rounded to a coarse gauge.
+
+## Wave 4 — Analyze: design of experiments
 
 *Not built.* Full and fractional factorials, aliasing and resolution, main effects and
 interactions. The point of interest is the same as wave 1's: a resolution-III design cannot
 separate a main effect from a two-factor interaction, and a run sheet that does not say so is
 selling a conclusion it cannot support.
 
-## Wave 4 — Measure: what a gage study cannot tell you
+## Wave 5 — Measure: what a gage study cannot tell you
 
 *Not built.* GRR measures precision, not accuracy: a gage can be perfectly repeatable and
 consistently wrong. Bias, linearity and stability studies need a reference standard, which means
 the generator needs one too. Also nested designs, for destructive testing where no two operators
 can measure the same part.
 
-## Wave 5 — Define and Improve
+## Wave 6 — Define and Improve
 
 *Not built.* Define artifacts that carry arithmetic rather than formatting — a charter whose
 benefit case is computable, CTQ trees with measurable leaves. Improve: pilot design, and
 benefit realisation measured against a counterfactual rather than against last quarter.
 
-## Wave 6 — Control: the plan, not the chart
+## Wave 7 — Control: the plan, not the chart
 
 *Not built, and deliberately narrower than it looks.* Control plans, sampling plan design and
 sustaining verification — whether the gain held, measured.

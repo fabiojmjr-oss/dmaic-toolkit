@@ -7,6 +7,7 @@ from dataclasses import dataclass
 import numpy as np
 import pandas as pd
 
+from .comparison import comparison_designs, group_comparisons
 from .config import SEED
 from .gage import gage_studies, specifications
 from .trial import improvement_trials, trial_designs
@@ -21,12 +22,16 @@ class Dataset:
         specifications: One row per gage, with the tolerance it is judged against.
         improvement_trials: One row per observation in a two-arm pilot.
         trial_designs: One row per pilot, including the effect actually put into it.
+        group_comparisons: One row per observation in a two-group comparison.
+        comparison_designs: One row per comparison, including whether a difference exists.
     """
 
     gage_studies: pd.DataFrame
     specifications: pd.DataFrame
     improvement_trials: pd.DataFrame
     trial_designs: pd.DataFrame
+    group_comparisons: pd.DataFrame
+    comparison_designs: pd.DataFrame
 
 
 def generate_dataset(seed: int = SEED) -> Dataset:
@@ -49,4 +54,7 @@ def generate_dataset(seed: int = SEED) -> Dataset:
         # Appended after the gage study, so wave 1's published figures are untouched by wave 2.
         improvement_trials=improvement_trials(rng),
         trial_designs=trial_designs(),
+        # Appended after the trials, so waves 1 and 2 are untouched by wave 3.
+        group_comparisons=group_comparisons(rng),
+        comparison_designs=comparison_designs(),
     )
