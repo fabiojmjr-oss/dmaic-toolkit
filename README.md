@@ -17,7 +17,7 @@ table is produced by a seeded generator whose parameters are written down. See
 
 | Module | Phase | Decision it enables |
 | --- | --- | --- |
-| [`dmaic.measure`](src/dmaic/measure/README.md) | Measure | Can this measurement system be used, what would fix it, and can it support the specification? |
+| [`dmaic.measure`](src/dmaic/measure/README.md) | Measure | Can this measurement system tell the parts apart, is it right, and what does being wrong cost? |
 | [`dmaic.analyze`](src/dmaic/analyze/README.md) | Analyze | How much data does this test need, does it hold the error rate it claims, and can the experiment separate the effects it is being asked about? |
 
 [`docs/ROADMAP.md`](docs/ROADMAP.md) lists the phases not yet built, and says why the Control
@@ -172,6 +172,59 @@ effect in the wrong column and a detection limit has no opinion about columns.
 column and the design is resolution II. `fractional_factorial` refuses to build it instead of
 returning a run sheet that looks fine.
 
+### Wave 5 — accuracy: the study passed and the gage is wrong
+
+The same three gages, now measured against five calibrated masters each, twelve readings per
+master. The crossed study of wave 1 **cannot see any of this**: every AIAG figure is computed
+from differences between readings, so adding a constant to all of them changes nothing. Shifting
+all three gages by 1000 units moves the largest of `grr`, `pct_study`, `pct_contribution`,
+`pct_tolerance` and `ndc` by at most **9.2e-12** — invariant, not insensitive.
+
+| Gage | Crossed study | Bias at nominal | p | % of tolerance | Linearity slope | Bias span | Span % of tolerance |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| `BALANCA-01` | **acceptable**, 5.69% tol | **3.9076 g** | 0.0000 | **7.82** | 0.0011 | 0.0456 | 0.09 |
+| `PAQUIMETRO-02` | unacceptable, 63.58% tol | 0.0058 mm | 0.7113 | 0.58 | **−0.2205** | **0.1764 mm** | **17.64** |
+| `INSPECAO-03` | unacceptable, 62.55% tol | −0.0521 µm | 0.8721 | 0.13 | −0.0132 | 0.4231 | 1.06 |
+
+**Precision and accuracy are independent, and each gage proves a different corner of it.**
+`BALANCA-01` passed the crossed study on both criteria and is the worst gage of the three: its
+bias is 7.82% of the tolerance against the 5.69% the entire GRR study measured, so the error
+nobody looked for is larger than the error everybody computed. `PAQUIMETRO-02` has **no bias at
+nominal at all** — p = 0.71 — and the one-point check every procedure prescribes passes a gage
+whose offset swings 17.64% of the tolerance across the range, in opposite directions at the two
+specification limits. `INSPECAO-03` fails on precision and is accurate, so "recalibrate it" would
+change nothing.
+
+**The bias converts into parts.** With a process standard deviation of 8.0 g against a 50 g
+tolerance, 99.8222% of production conforms and the gage's own sigma is 0.4743:
+
+| Case | Bias | Guard band | Good parts scrapped | Bad parts shipped |
+| --- | --- | --- | --- | --- |
+| Calibrated | 0.0000 | — | 161 ppm | 128 ppm |
+| **As found** | 3.9076 | — | **3,356 ppm** | **734 ppm** |
+| As found, guard banded | 3.9076 | 3.5890 | **13,618 ppm** | 128 ppm |
+
+Scrap multiplied by 20.8 and escapes by 5.7, on a gage whose study said *acceptable*. And the
+workaround is worse than the fix: tightening acceptance by 3.5890 g brings escapes exactly back
+to the calibrated rate and pays for it with 13,618 ppm of conforming parts — **84.5 times** the
+calibrated scrap, 1.36% of everything produced. A calibration costs neither number.
+
+**"The interval contains zero" is not an acceptance rule.** Hold the bias at 0.5 g — 1% of the
+tolerance, immaterial — and vary only the gage's precision, over 4,000 simulated twelve-reading
+studies per row:
+
+| Gage repeatability | 6σ as % of tolerance | Bias ÷ sd | Called significant |
+| --- | --- | --- | --- |
+| 0.20 | 2.40 | 2.5000 | **1.0000** |
+| 0.56 | 6.72 | 0.8929 | 0.7983 |
+| 1.50 | 18.00 | 0.3333 | 0.1893 |
+| 4.00 | 48.00 | 0.1250 | **0.0717** |
+
+The better the gage, the more certainly it is rejected for an offset that does not matter — and
+the worse the gage, the more easily it passes. The verdict tracks the gage's precision rather than
+the consequence, the same anti-correlation with usefulness wave 3 found in the normality
+pre-test, which is why `BiasStudy` reports significance and materiality as two separate findings.
+
 ## Examples
 
 | Script | What it shows |
@@ -180,13 +233,14 @@ returning a run sheet that looks fine.
 | [`02_could_the_pilot_have_found_it.py`](examples/02_could_the_pilot_have_found_it.py) | Three pilots, three non-significant results, three real effects |
 | [`03_which_test_and_can_it_be_trusted.py`](examples/03_which_test_and_can_it_be_trusted.py) | The taught flowchart, measured against always using Welch. It loses |
 | [`04_the_generator_decides_the_conclusion.py`](examples/04_the_generator_decides_the_conclusion.py) | One experiment, three designs, and a factor that does nothing reported as the second largest |
+| [`05_the_gage_passed_and_it_is_wrong.py`](examples/05_the_gage_passed_and_it_is_wrong.py) | The gage the study approved, measured against masters, and what its bias costs in parts |
 
 ## Verification
 
-**124 tests, 94% statement coverage, split by cost.** 106 of them run in about four and a half
-seconds, and the whole `make check` sequence — linters, type check, coverage and all — in under
-seven. That is what a push is gated on. The remaining 18 re-derive every figure quoted in a README
-and run every example script, in about ten seconds.
+**152 tests, 95% statement coverage, split by cost.** 130 of them run in about seven seconds,
+and the whole `make check` sequence — linters, type check, coverage and all — in about nine. That
+is what a push is gated on. The remaining 22 re-derive every figure quoted in a README and run
+every example script, in about twelve seconds.
 
 The gage ANOVA is verified against a 2×2×2 design whose sums of squares are integers (242, 50, 2
 and 8, adding to 302), not only against its own output. Independent property checks confirm that
@@ -200,6 +254,15 @@ level exactly, the detectable difference round-trips back to the power it was so
 noncentral-t result is checked against a recomputation from scipy primitives rather than against
 the wrapper's own output. Every generator table is pinned too — adding wave 2 left wave 1's gage
 study byte-identical, which is what the stream-order discipline is for.
+
+The accuracy arithmetic is anchored the same way. The invariance claim is asserted as equality
+within floating point rather than within a tolerance, because it is algebra rather than a
+measurement. A line fitted to points that lie on a line has to come back exact, a perfect gage has
+to misjudge nothing, a centred process has to misjudge symmetrically in both bias directions, and
+the guard band has to round-trip to the escape rate it was solved for. The significance simulation
+is anchored on its own control: at a bias of zero the t statistic does not depend on the standard
+deviation at all, so all four rows have to return the *identical* rejection rate — four merely
+similar numbers would mean the rows are not comparable.
 
 The design arithmetic is checked against a 2² whose effects can be read straight off four
 numbers (responses 10, 20, 30, 60 give A = 30, B = 20, AB = 10), against the orthogonality of

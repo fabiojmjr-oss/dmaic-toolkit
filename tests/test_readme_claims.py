@@ -21,8 +21,15 @@ from dmaic.analyze import (
     full_factorial,
 )
 from dmaic.analyze.factorial import IDENTITY
-from dmaic.measure import gage_rr
-from dmaic.synth import FACTORIALS, Dataset
+from dmaic.measure import (
+    bias_significance_tradeoff,
+    bias_study,
+    gage_rr,
+    guard_band,
+    linearity_study,
+    misclassification,
+)
+from dmaic.synth import FACTORIALS, GAGES, Dataset
 
 FACTORIAL = FACTORIALS[0]
 
@@ -545,7 +552,7 @@ def test_every_example_runs_and_prints_something() -> None:
 
     root = Path(__file__).resolve().parents[1]
     scripts = sorted((root / "examples").glob("*.py"))
-    assert len(scripts) == 4
+    assert len(scripts) == 5
 
     for script in scripts:
         captured, sys.stdout = sys.stdout, StringIO()
@@ -672,3 +679,152 @@ def test_two_four_letter_generators_can_still_give_resolution_two() -> None:
     """The trap the README names: the relation closes, the generators do not."""
     with pytest.raises(ValueError, match="resolution II"):
         fractional_factorial(("a", "b", "c", "d", "e"), ("D=ABC", "E=BCD"))
+
+
+def _at_nominal(full: Dataset, gage: str) -> pd.Series:
+    """The readings taken on the master nearest the centre of the range."""
+    designs = full.reference_designs.set_index("gage")
+    nominal = float(designs.loc[gage, "nominal"])
+    readings = full.reference_studies
+    selected = readings[(readings["gage"] == gage) & (readings["reference"] == nominal)]
+    return selected["value"]
+
+
+@pytest.mark.slow
+def test_a_crossed_study_is_invariant_to_bias_to_the_quoted_precision(full: Dataset) -> None:
+    """The 9.2e-12 in the accuracy README and both root READMEs.
+
+    The figure is a residual of floating-point arithmetic, so it is bounded rather than matched:
+    what is published is that the largest change across all three gages is under 1e-11, and a
+    change that was actually a sensitivity would be orders of magnitude above it.
+    """
+    specs = full.specifications.set_index("gage")
+    worst = 0.0
+    for gage in specs.index:
+        group = full.gage_studies[full.gage_studies["gage"] == gage]
+        tolerance = float(specs.loc[gage, "tolerance"])
+        base = gage_rr(group, tolerance=tolerance, gage=str(gage))
+        shifted = group.copy()
+        shifted["value"] = shifted["value"] + 1000.0
+        offset = gage_rr(shifted, tolerance=tolerance, gage=str(gage))
+        for field in ("grr", "pct_study", "pct_contribution", "pct_tolerance", "ndc"):
+            worst = max(worst, abs(getattr(base, field) - getattr(offset, field)))
+    assert worst < 1e-11
+
+
+@pytest.mark.slow
+def test_the_accuracy_table_reproduces(full: Dataset) -> None:
+    """The bias and linearity table in the accuracy README and both root READMEs."""
+    designs = full.reference_designs.set_index("gage")
+    expected = {
+        # gage: (bias at nominal, p, % of tolerance, detectable, slope, span, span % of tolerance)
+        "BALANCA-01": (3.9076, 0.0000, 7.8151, 0.3646, 0.0011, 0.0456, 0.0913),
+        "PAQUIMETRO-02": (0.0058, 0.7113, 0.5779, 0.0468, -0.2205, 0.1764, 17.6419),
+        "INSPECAO-03": (-0.0521, 0.8721, 0.1304, 0.9745, -0.0132, 0.4231, 1.0579),
+    }
+    for gage, row in expected.items():
+        bias, p_value, pct, detectable, slope, span, span_pct = row
+        tolerance = float(designs.loc[gage, "tolerance"])
+        study = bias_study(
+            _at_nominal(full, gage),
+            reference=float(designs.loc[gage, "nominal"]),
+            tolerance=tolerance,
+            gage=gage,
+        )
+        assert study.bias == pytest.approx(bias, abs=5e-5), f"{gage} bias"
+        assert study.p_value == pytest.approx(p_value, abs=5e-5), f"{gage} p"
+        assert study.pct_tolerance == pytest.approx(pct, abs=5e-5), f"{gage} pct"
+        assert study.detectable_bias == pytest.approx(detectable, abs=5e-5), f"{gage} detectable"
+
+        group = full.reference_studies[full.reference_studies["gage"] == gage]
+        linearity = linearity_study(group, tolerance=tolerance, gage=gage)
+        assert linearity.slope == pytest.approx(slope, abs=5e-5), f"{gage} slope"
+        assert linearity.span == pytest.approx(span, abs=5e-5), f"{gage} span"
+        assert linearity.pct_tolerance_span == pytest.approx(span_pct, abs=5e-5), f"{gage} span %"
+
+    # The three corners of the two-by-two the document is built on.
+    balance = bias_study(
+        _at_nominal(full, "BALANCA-01"), reference=500.0, tolerance=50.0, gage="BALANCA-01"
+    )
+    crossed = gage_rr(
+        full.gage_studies[full.gage_studies["gage"] == "BALANCA-01"],
+        tolerance=50.0,
+        gage="BALANCA-01",
+    )
+    # Passes on precision, and its accuracy error is larger than its whole precision error.
+    assert crossed.verdict() == "acceptable"
+    assert balance.pct_tolerance > crossed.pct_tolerance
+
+    caliper = full.reference_studies[full.reference_studies["gage"] == "PAQUIMETRO-02"]
+    one_point = bias_study(
+        _at_nominal(full, "PAQUIMETRO-02"), reference=25.0, tolerance=1.0, gage="PAQUIMETRO-02"
+    )
+    # The one-point check passes a gage whose offset spans 17.64% of the tolerance.
+    assert not one_point.significant
+    assert not one_point.material
+    assert linearity_study(caliper, tolerance=1.0).material
+
+
+@pytest.mark.slow
+def test_what_the_bias_costs_reproduces(full: Dataset) -> None:
+    """The ppm table, the guard band, and the three multiples quoted next to it."""
+    profile = next(item for item in GAGES if item.gage == "BALANCA-01")
+    crossed = gage_rr(
+        full.gage_studies[full.gage_studies["gage"] == "BALANCA-01"],
+        tolerance=profile.tolerance,
+        gage="BALANCA-01",
+    )
+    found = bias_study(
+        _at_nominal(full, "BALANCA-01"),
+        reference=profile.nominal,
+        tolerance=profile.tolerance,
+    )
+    limits = {
+        "gage_sd": crossed.grr,
+        "part_sd": profile.part_sd,
+        "nominal": profile.nominal,
+        "lsl": profile.lsl,
+        "usl": profile.usl,
+    }
+    assert crossed.grr == pytest.approx(0.4743, abs=5e-5)
+    assert found.bias == pytest.approx(3.9076, abs=5e-5)
+
+    calibrated = misclassification(0.0, **limits)
+    assert calibrated.conforming == pytest.approx(0.998222, abs=5e-7)
+    assert calibrated.scrap_ppm == pytest.approx(161, abs=0.5)
+    assert calibrated.escape_ppm == pytest.approx(128, abs=0.5)
+
+    as_found = misclassification(found.bias, **limits)
+    assert as_found.scrap_ppm == pytest.approx(3356, abs=0.5)
+    assert as_found.escape_ppm == pytest.approx(734, abs=0.5)
+    assert as_found.scrap_ppm / calibrated.scrap_ppm == pytest.approx(20.8, abs=5e-2)
+    assert as_found.escape_ppm / calibrated.escape_ppm == pytest.approx(5.7, abs=5e-2)
+
+    band = guard_band(calibrated.false_accept, found.bias, **limits)
+    assert band == pytest.approx(3.5890, abs=5e-5)
+    banded = misclassification(found.bias, guard=band, **limits)
+    assert banded.escape_ppm == pytest.approx(calibrated.escape_ppm, abs=1e-6)
+    assert banded.scrap_ppm == pytest.approx(13618, abs=0.5)
+    assert banded.scrap_ppm / calibrated.scrap_ppm == pytest.approx(84.5, abs=5e-2)
+    # 1.36% of everything produced, which is the figure the document quotes in percent.
+    assert banded.scrap_ppm / 1e6 == pytest.approx(0.0136, abs=5e-5)
+
+
+@pytest.mark.slow
+def test_the_significance_rule_table_reproduces() -> None:
+    """The four rows showing the verdict tracking the gage instead of the consequence."""
+    table = bias_significance_tradeoff(
+        (0.2, 0.56, 1.5, 4.0), bias=0.5, tolerance=50.0, n=12
+    ).set_index("repeat_sd")
+    expected = {
+        # repeatability: (6 sigma as % of tolerance, bias / sd, flagged)
+        0.2: (2.40, 2.5000, 1.0000),
+        0.56: (6.72, 0.8929, 0.7983),
+        1.5: (18.00, 0.3333, 0.1893),
+        4.0: (48.00, 0.1250, 0.0717),
+    }
+    for sd, (precision, ratio, flagged) in expected.items():
+        assert table.loc[sd, "pct_tolerance_precision"] == pytest.approx(precision, abs=5e-3)
+        assert table.loc[sd, "bias_to_sd"] == pytest.approx(ratio, abs=5e-5)
+        assert table.loc[sd, "flagged"] == pytest.approx(flagged, abs=5e-5)
+        assert not bool(table.loc[sd, "material"])

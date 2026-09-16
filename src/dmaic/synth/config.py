@@ -383,3 +383,67 @@ FACTORIALS = (
         noise_sd=1.5,
     ),
 )
+
+
+@dataclass(frozen=True)
+class ReferenceProfile:
+    """One gage measured against calibrated masters, so its accuracy can be talked about.
+
+    The gage is one of :data:`GAGES` rather than a new instrument, which is the point: the
+    crossed study and the reference study are two properties of the same measurement system, and
+    the interesting cases are where the two verdicts disagree.
+
+    Attributes:
+        gage: Must name a profile in :data:`GAGES`, whose nominal and repeatability are reused.
+        references: The accepted values of the masters, spanning the specification.
+        repeats: Readings taken on each master.
+        bias_at_nominal: Systematic offset at the centre of the range, signed.
+        bias_slope: Change in bias per unit of reference away from nominal. Non-zero means the
+            gage is non-linear: the offset it adds depends on what it is measuring, so a bias
+            study at one point cannot stand in for the range.
+    """
+
+    gage: str
+    references: tuple[float, ...]
+    repeats: int
+    bias_at_nominal: float
+    bias_slope: float
+
+
+# Three reference studies, chosen so that precision and accuracy come apart in all three
+# directions. The crossed study of wave 1 is invariant to every one of these biases - adding a
+# constant to every reading leaves each AIAG figure unchanged - so nothing below is visible from
+# the study that already passed or failed these gages.
+REFERENCES = (
+    # The uncomfortable one. BALANCA-01 passed wave 1 on both criteria, and it weighs 4 g heavy
+    # at every point in its range: a tare left in, which is the commonest bias there is. The
+    # offset is 8% of the tolerance, larger than the entire 5.69% the GRR study measured.
+    ReferenceProfile(
+        gage="BALANCA-01",
+        references=(480.0, 490.0, 500.0, 510.0, 520.0),
+        repeats=12,
+        bias_at_nominal=4.0,
+        bias_slope=0.0,
+    ),
+    # Zero bias at nominal and unusable anyway. The offset runs from +0.08 mm at the bottom of
+    # the range to -0.08 mm at the top, so the one-point check every procedure prescribes - take
+    # a master near nominal, ten readings, test the mean - passes a gage that misjudges parts at
+    # both specification limits, in opposite directions.
+    ReferenceProfile(
+        gage="PAQUIMETRO-02",
+        references=(24.6, 24.8, 25.0, 25.2, 25.4),
+        repeats=12,
+        bias_at_nominal=0.0,
+        bias_slope=-0.20,
+    ),
+    # The control, and the other disagreement: accurate and imprecise. It failed wave 1 at 64%
+    # study variation with no bias and no linearity error at all, which is why "the gage is bad"
+    # is not a diagnosis and "recalibrate it" would change nothing here.
+    ReferenceProfile(
+        gage="INSPECAO-03",
+        references=(64.0, 72.0, 80.0, 88.0, 96.0),
+        repeats=12,
+        bias_at_nominal=0.0,
+        bias_slope=0.0,
+    ),
+)

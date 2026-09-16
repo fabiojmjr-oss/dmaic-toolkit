@@ -27,7 +27,9 @@ def _coded_runs(k: int) -> np.ndarray:
 
 
 def _column(runs: np.ndarray, word: str) -> np.ndarray:
-    column = np.ones(len(runs), dtype=int)
+    # Annotated because the numpy stubs shipped for older interpreters give np.ones a
+    # one-dimensional shape type, which the elementwise product then widens.
+    column: np.ndarray = np.ones(len(runs), dtype=int)
     for letter in word:
         column = column * runs[:, LETTERS.index(letter)]
     return column
@@ -36,7 +38,7 @@ def _column(runs: np.ndarray, word: str) -> np.ndarray:
 def _one_factorial(profile: FactorialProfile, rng: np.random.Generator) -> pd.DataFrame:
     runs = _coded_runs(len(profile.settings))
     # The coefficient is half the effect, because an effect is the move across two coded units.
-    response = np.full(len(runs), profile.baseline)
+    response: np.ndarray = np.full(len(runs), profile.baseline)
     for word, effect in profile.true_effects:
         response = response + (effect / 2.0) * _column(runs, word)
     response = response + rng.normal(0.0, profile.noise_sd, size=len(runs))
