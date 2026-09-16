@@ -34,29 +34,72 @@ comparison is `p_value > alpha` and it is the other way round. The arithmetic wa
 documentation would have sent a caller to the wrong branch. It was found by using the parameter,
 not by reading it, which is the argument for writing the example before publishing the module.
 
-## Wave 2 — Measure: what a gage study cannot tell you
+## Wave 2 — Analyze: the test before the test
 
-*Not built.* GRR measures precision, not accuracy: a gage can be perfectly repeatable and
-consistently wrong. Bias, linearity and stability studies need a reference standard, which means
-the generator needs one too. Also nested designs, for destructive testing where no two operators
-can measure the same part.
+**Power and sample size** *(complete — [`dmaic.analyze`](../src/dmaic/analyze/README.md))*. Power
+from the noncentral t, sample size solved rather than approximated, and the detectable difference
+as a first-class output.
 
-## Wave 3 — Analyze: the test before the test
+This is second because it is the other gate that decides a conclusion before any data is
+collected. The commonest failure in an improvement project is not a wrong conclusion, it is a test
+with no power concluding "no significant difference" and the project being closed on it — and that
+failure is invisible from the output while being entirely predictable beforehand.
 
-*Not built.* Sample size and power. The commonest failure in improvement projects is not a wrong
-conclusion, it is a test with no power concluding "no significant difference" and the project
-being closed on it. A toolkit that computes the power of a comparison *before* it is run answers
-a question most of them only answer afterwards.
+Three pilots in the generator, each sized from what was convenient to collect, and the generator
+declares the effect it planted. That last part is the whole advantage of synthetic data here: a
+real project that finds nothing cannot tell a missed effect from an absent one.
 
-Then hypothesis tests with their assumptions checked rather than assumed: normality, equal
-variance, and what to do when they fail.
+- **All three pilots are non-significant and all three had a real effect**, each failing for a
+  different reason. `PILOTO-CICLO` had a 24.6% chance of finding its own 4-minute effect and a
+  detectable difference of 8.83 minutes, so `p = 0.9234` is a statement about the study rather
+  than the process. `PILOTO-SETUP` was properly designed at 79.1% power and missed anyway, which
+  is what 80% power *means* — one failure in five, by construction, and a project treating a
+  single non-significant pilot as settled has misread the guarantee it bought. `PILOTO-REFUGO`
+  observed a **larger** improvement than the one that existed (3.5 points against a true 2.5) and
+  still could not prove it, because detecting 2.5 points off an 8% scrap rate needs **1,568 units
+  per arm** against the 200 collected. That last case kills the intuition that a non-significant
+  result implies a small effect.
+- **Post-hoc power is arithmetic on the p-value.** Observed power is a strictly monotone function
+  of it, and at `p = α` the observed power is 0.5035, converging on one half as the study grows
+  (0.5114 at n=10, 0.5002 at n=500). "We only had 48% power" is another way of writing "p was just
+  above 0.05". `observed_power_is_circular` returns both figures together, and only together, for
+  that reason — while the detectable difference uses the sample size and the spread but *not* the
+  observed effect, and therefore says something the p-value does not.
 
-## Wave 4 — Analyze: design of experiments
+**A claim of mine was too strong and the measurement corrected it.** The module docstring first
+said the textbook formula `n = 2(z+z)²s²/d²` understates sample size "the more so the smaller the
+study", implying a general concern. Measured across the range, it is off by **exactly one
+observation per group** from d = 0.1 to d = 1.2, and the power it delivers rounds to the power
+asked for. The direction was right and the magnitude was overstated. The honest version, now
+published, names where it actually bites: the small confirmation run, where at two standard
+deviations the formula asks for 4 per group against the 6 required and delivers 66% power — which
+is `PILOTO-SETUP`'s exact situation.
+
+Two test expectations of mine were also wrong rather than the code. I assumed the detectable
+difference falls as one over the square root of n; it falls faster (6.68 against √40 = 6.32),
+because a small study is penalised twice — fewer observations *and* a wider t quantile. And I
+guessed at n = 70 to land in the "marginal" power band, which came out at 0.49938, just
+underneath; the verdict bands are now tested on the boundaries themselves rather than on my
+arithmetic about where a sample size falls.
+
+**Still to build in this phase:** hypothesis tests with their assumptions checked rather than
+assumed — normality, equal variance, and what to do when they fail. Unequal group sizes and the
+Welch case, which is a different calculation rather than a refinement of this one. And
+multiplicity, which nothing here corrects for.
+
+## Wave 3 — Analyze: design of experiments
 
 *Not built.* Full and fractional factorials, aliasing and resolution, main effects and
 interactions. The point of interest is the same as wave 1's: a resolution-III design cannot
 separate a main effect from a two-factor interaction, and a run sheet that does not say so is
 selling a conclusion it cannot support.
+
+## Wave 4 — Measure: what a gage study cannot tell you
+
+*Not built.* GRR measures precision, not accuracy: a gage can be perfectly repeatable and
+consistently wrong. Bias, linearity and stability studies need a reference standard, which means
+the generator needs one too. Also nested designs, for destructive testing where no two operators
+can measure the same part.
 
 ## Wave 5 — Define and Improve
 

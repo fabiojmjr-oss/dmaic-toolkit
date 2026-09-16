@@ -114,3 +114,75 @@ GAGES = (
         usl=100.0,
     ),
 )
+
+
+@dataclass(frozen=True)
+class TrialProfile:
+    """One two-arm improvement trial.
+
+    Attributes:
+        trial: Label for the pilot.
+        measurand: What was measured.
+        unit: Unit of measure, or ``"proportion"`` for a pass/fail count.
+        kind: ``"continuous"`` or ``"binary"``.
+        n_per_arm: Observations collected in each arm - the sample size the project actually ran,
+            not the one it should have run.
+        baseline: Mean, or probability, of the baseline arm.
+        true_effect: The effect put into the improved arm, signed. Negative is an improvement for
+            every measurand here, because all three are things you want less of.
+        sd: Within-arm standard deviation for a continuous trial; ``nan`` for a binary one, where
+            the spread is determined by the probability.
+    """
+
+    trial: str
+    measurand: str
+    unit: str
+    kind: str
+    n_per_arm: int
+    baseline: float
+    true_effect: float
+    sd: float
+
+
+# Each trial is sized the way projects are actually sized - from what was convenient to collect -
+# and each lands in a different place once the power is computed. That spread is the point: a
+# generator where every study was underpowered would make the finding look like a property of the
+# data rather than of the sample sizes.
+TRIALS = (
+    # Sized by the month it was convenient to run. A real 4% improvement, and a study that will
+    # miss it three times in four.
+    TrialProfile(
+        trial="PILOTO-CICLO",
+        measurand="tempo de ciclo",
+        unit="min",
+        kind="continuous",
+        n_per_arm=30,
+        baseline=100.0,
+        true_effect=-4.0,
+        sd=12.0,
+    ),
+    # The confirmation run: five parts per arm, because the expected effect is large. Almost
+    # adequate, and the case where the textbook shortcut would have under-sized it materially.
+    TrialProfile(
+        trial="PILOTO-SETUP",
+        measurand="tempo de setup",
+        unit="min",
+        kind="continuous",
+        n_per_arm=5,
+        baseline=45.0,
+        true_effect=-6.0,
+        sd=3.0,
+    ),
+    # Scrap from 8% to 5.5% - an ordinary project target on an extraordinary sample requirement,
+    # because the information in a proportion is thin when the proportion is small.
+    TrialProfile(
+        trial="PILOTO-REFUGO",
+        measurand="taxa de refugo",
+        unit="proportion",
+        kind="binary",
+        n_per_arm=200,
+        baseline=0.08,
+        true_effect=-0.025,
+        sd=float("nan"),
+    ),
+)
