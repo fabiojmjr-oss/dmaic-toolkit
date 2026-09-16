@@ -6,6 +6,7 @@ No operation's data is used anywhere in this repository. See ``DISCLAIMER.md``.
 from .comparison import COMPARISON_COLUMNS, comparison_designs, group_comparisons
 from .config import (
     COMPARISONS,
+    FACTORIALS,
     GAGES,
     OPERATORS,
     PARTS,
@@ -13,10 +14,13 @@ from .config import (
     SEED,
     TRIALS,
     ComparisonProfile,
+    FactorialProfile,
+    FactorSetting,
     GageProfile,
     TrialProfile,
 )
 from .dataset import Dataset, generate_dataset
+from .factorial import factorial_effects, factorial_runs
 from .gage import GAGE_COLUMNS, gage_studies, specifications
 from .trial import ARMS, TRIAL_COLUMNS, improvement_trials, trial_designs
 
@@ -24,6 +28,7 @@ __all__ = [
     "ARMS",
     "COMPARISONS",
     "COMPARISON_COLUMNS",
+    "FACTORIALS",
     "GAGES",
     "GAGE_COLUMNS",
     "OPERATORS",
@@ -34,9 +39,13 @@ __all__ = [
     "TRIAL_COLUMNS",
     "ComparisonProfile",
     "Dataset",
+    "FactorSetting",
+    "FactorialProfile",
     "GageProfile",
     "TrialProfile",
     "comparison_designs",
+    "factorial_effects",
+    "factorial_runs",
     "gage_studies",
     "generate_dataset",
     "group_comparisons",

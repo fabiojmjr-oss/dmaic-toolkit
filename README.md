@@ -18,7 +18,7 @@ table is produced by a seeded generator whose parameters are written down. See
 | Module | Phase | Decision it enables |
 | --- | --- | --- |
 | [`dmaic.measure`](src/dmaic/measure/README.md) | Measure | Can this measurement system be used, what would fix it, and can it support the specification? |
-| [`dmaic.analyze`](src/dmaic/analyze/README.md) | Analyze | How much data does this test need, what did a non-significant result rule out, and does the test hold the error rate it claims? |
+| [`dmaic.analyze`](src/dmaic/analyze/README.md) | Analyze | How much data does this test need, does it hold the error rate it claims, and can the experiment separate the effects it is being asked about? |
 
 [`docs/ROADMAP.md`](docs/ROADMAP.md) lists the phases not yet built, and says why the Control
 phase is deliberately narrower than it looks.
@@ -132,6 +132,46 @@ to 6.762. Taken together the regime flag catches the bad case **75.0% of the tim
 four, which is why `compare_means` uses Welch unconditionally and returns the checks as evidence
 rather than as a gate.
 
+### Wave 4 — design of experiments
+
+One synthetic curing-oven experiment: four factors, sixteen runs, shear strength in MPa. The
+generator declares what is in the process, and **two of the four factors are exactly zero** —
+cure time and resin batch. The sixteen runs are measured once; each design below reads the rows
+it would have run, so nothing varies between them but which of the same runs were kept.
+
+| Term | True | full 2⁴, 16 runs | 2^(4-1) `D=ABC`, 8 runs | 2^(4-1) `D=AB`, 8 runs |
+| --- | --- | --- | --- | --- |
+| A temperatura | +12.00 | 12.5810 | 11.8174 | 13.1256 |
+| B pressao | +5.00 | 4.9727 | 4.5785 | 5.8547 |
+| C tempo de cura | 0.00 | 0.2853 | −0.3577 | −0.4082 |
+| D lote de resina | 0.00 | 1.5494 | 0.5307 | **9.4067** |
+| AB | +8.00 | 7.8573 | **7.7678** | 9.4067 |
+| Resolution | | full | IV | **III** |
+
+**A resolution III design does not lose an interaction, it awards it to a factor that does
+nothing.** Resin batch has an effect of exactly zero and comes back at 9.4067 — the second largest
+figure in the study, 1.88 times the real pressure effect, and 2.63 times the smallest effect eight
+runs could have detected. It is not marginal and it does not look like noise. The two fractions
+cost the same eight runs, read the same experiment, and rank the factors differently: `D=ABC`
+gives A, B, D, C and `D=AB` gives A, **D**, B, C. Only the generator differs, and it is free.
+
+**Aliasing is an exact addition, not extra noise.** The fraction's estimate is the arithmetic sum
+of the full design's estimates of the aliased terms — `D + AB` is 1.5494 + 7.8573 = 9.4067,
+reproducing to 5.3e-15 across every alias pair of both fractions. That is why `D=ABC` works: it
+also adds two numbers, and one of them happens to be zero. It recovers the interaction at 7.7678
+against the full design's 7.8573, a gap of 0.0895 MPa on an effect of 8, for half the runs.
+
+**A detection limit protects against noise and says nothing about bias.** At this process's
+run-to-run spread of 1.5 MPa, eight runs can see 3.5711 MPa and sixteen can see 2.2600. The
+largest purely spurious estimate in the full design is 1.5494, below the limit, so a project would
+correctly leave it alone. The false 9.4067 sits at 2.63 times the limit, because it is a real
+effect in the wrong column and a detection limit has no opinion about columns.
+
+**And the resolution comes from the defining relation, not from the generators.** `D=ABC` and
+`E=BCD` are both four-letter generators; their words multiply to `AE`, so two factors share one
+column and the design is resolution II. `fractional_factorial` refuses to build it instead of
+returning a run sheet that looks fine.
+
 ## Examples
 
 | Script | What it shows |
@@ -139,13 +179,14 @@ rather than as a gate.
 | [`01_is_the_gage_good_enough.py`](examples/01_is_the_gage_good_enough.py) | Three gages, three verdicts, and the two acceptance criteria disagreeing on one of them |
 | [`02_could_the_pilot_have_found_it.py`](examples/02_could_the_pilot_have_found_it.py) | Three pilots, three non-significant results, three real effects |
 | [`03_which_test_and_can_it_be_trusted.py`](examples/03_which_test_and_can_it_be_trusted.py) | The taught flowchart, measured against always using Welch. It loses |
+| [`04_the_generator_decides_the_conclusion.py`](examples/04_the_generator_decides_the_conclusion.py) | One experiment, three designs, and a factor that does nothing reported as the second largest |
 
 ## Verification
 
-**95 tests, 93% statement coverage, split by cost.** 83 of them run in about four and a half
+**124 tests, 94% statement coverage, split by cost.** 106 of them run in about four and a half
 seconds, and the whole `make check` sequence — linters, type check, coverage and all — in under
-seven. That is what a push is gated on. The remaining 12 re-derive every figure quoted in a README
-and run every example script, in about eleven seconds.
+seven. That is what a push is gated on. The remaining 18 re-derive every figure quoted in a README
+and run every example script, in about ten seconds.
 
 The gage ANOVA is verified against a 2×2×2 design whose sums of squares are integers (242, 50, 2
 and 8, adding to 302), not only against its own output. Independent property checks confirm that
@@ -159,6 +200,13 @@ level exactly, the detectable difference round-trips back to the power it was so
 noncentral-t result is checked against a recomputation from scipy primitives rather than against
 the wrapper's own output. Every generator table is pinned too — adding wave 2 left wave 1's gage
 study byte-identical, which is what the stream-order discipline is for.
+
+The design arithmetic is checked against a 2² whose effects can be read straight off four
+numbers (responses 10, 20, 30, 60 give A = 30, B = 20, AB = 10), against the orthogonality of
+every column up to five factors, and against the exact-sum identity: a fraction's estimate has to
+equal the sum of the full design's estimates of the aliased terms, and it does to 5.3e-15 rather
+than to a tolerance. An aliased pair's two estimates are asserted **identical** rather than close,
+because they are the same column and any difference at all would mean the contrast is wrong.
 
 The simulations are anchored on their own control cases, which is the only way to test a Monte
 Carlo result: where every assumption holds, each of the four procedures has to return the nominal

@@ -7,11 +7,38 @@ the text quietly wrong.
 
 from __future__ import annotations
 
+import numpy as np
+import pandas as pd
 import pytest
 
-from dmaic.analyze import DEFAULT_ALPHA, PROCEDURES
+from dmaic.analyze import (
+    DEFAULT_ALPHA,
+    PROCEDURES,
+    Design,
+    detectable_effect,
+    effects,
+    fractional_factorial,
+    full_factorial,
+)
+from dmaic.analyze.factorial import IDENTITY
 from dmaic.measure import gage_rr
-from dmaic.synth import Dataset
+from dmaic.synth import FACTORIALS, Dataset
+
+FACTORIAL = FACTORIALS[0]
+
+
+def _estimates(design: Design, full: Dataset) -> pd.Series:
+    """One design's estimates, read off the one measured experiment.
+
+    Every factorial figure below comes through here, so no table can be produced from a different
+    noise draw than another: the fractions select rows of the sixteen runs rather than being
+    generated separately.
+    """
+    runs = full.factorial_runs
+    coded = runs[list(FACTORIAL.factors)].to_numpy()
+    response = runs["response"].to_numpy()
+    table = effects(design, response[design.rows_of(coded)])
+    return table.set_index("effect")["estimate"]
 
 
 @pytest.mark.slow
@@ -518,7 +545,7 @@ def test_every_example_runs_and_prints_something() -> None:
 
     root = Path(__file__).resolve().parents[1]
     scripts = sorted((root / "examples").glob("*.py"))
-    assert len(scripts) == 3
+    assert len(scripts) == 4
 
     for script in scripts:
         captured, sys.stdout = sys.stdout, StringIO()
@@ -528,3 +555,120 @@ def test_every_example_runs_and_prints_something() -> None:
             output = sys.stdout.getvalue()
             sys.stdout = captured
         assert output.strip(), f"{script.name} printed nothing"
+
+
+@pytest.mark.slow
+def test_the_planted_truth_is_what_the_factorial_readme_says(full: Dataset) -> None:
+    """The truth table, and the two zeros the whole document rests on."""
+    truth = full.factorial_effects.set_index("effect")["true_effect"]
+    assert FACTORIAL.factors == ("temperatura", "pressao", "tempo de cura", "lote de resina")
+    assert truth["A"] == 12.0
+    assert truth["B"] == 5.0
+    assert truth["C"] == 0.0
+    assert truth["D"] == 0.0
+    assert truth["AB"] == 8.0
+    assert FACTORIAL.noise_sd == 1.5
+    assert len(full.factorial_runs) == 16
+
+
+@pytest.mark.slow
+def test_the_three_design_table_reproduces(full: Dataset) -> None:
+    """The estimate table in the factorial README, and the resolution row under it."""
+    designs = {
+        "full": full_factorial(FACTORIAL.factors),
+        "resIV": fractional_factorial(FACTORIAL.factors, ("D=ABC",)),
+        "resIII": fractional_factorial(FACTORIAL.factors, ("D=AB",)),
+    }
+    expected = {
+        # term: (full 2^4, 2^(4-1) D=ABC, 2^(4-1) D=AB)
+        "A": (12.5810, 11.8174, 13.1256),
+        "B": (4.9727, 4.5785, 5.8547),
+        "C": (0.2853, -0.3577, -0.4082),
+        "D": (1.5494, 0.5307, 9.4067),
+        "AB": (7.8573, 7.7678, 9.4067),
+    }
+    estimates = {name: _estimates(design, full) for name, design in designs.items()}
+    for term, row in expected.items():
+        for (name, series), value in zip(estimates.items(), row, strict=True):
+            assert series[term] == pytest.approx(value, abs=5e-5), f"{name} {term}"
+
+    assert designs["full"].resolution_label == "full"
+    assert designs["resIV"].resolution_label == "IV"
+    assert designs["resIII"].resolution_label == "III"
+
+    # The headline: a factor with an effect of exactly zero, reported as the second largest in
+    # the study, at 1.88 times the real pressure effect.
+    assert full.factorial_effects.set_index("effect").loc["D", "true_effect"] == 0.0
+    assert estimates["resIII"]["D"] / 5.0 == pytest.approx(1.88, abs=5e-3)
+    # And the good fraction's cost, on the interaction, against the full sixteen runs.
+    gap = abs(estimates["resIV"]["AB"] - estimates["full"]["AB"])
+    assert gap == pytest.approx(0.0895, abs=5e-5)
+
+
+@pytest.mark.slow
+def test_the_two_fractions_rank_the_factors_differently(full: Dataset) -> None:
+    """The ranking table, which is what a project would actually act on."""
+    expected = {
+        ("D=ABC",): ["A", "B", "D", "C"],
+        ("D=AB",): ["A", "D", "B", "C"],
+    }
+    for generators, order in expected.items():
+        design = fractional_factorial(FACTORIAL.factors, generators)
+        estimates = _estimates(design, full)
+        mains = estimates[list("ABCD")].abs().sort_values(ascending=False)
+        assert list(mains.index) == order, generators
+
+
+@pytest.mark.slow
+def test_aliasing_is_an_exact_sum_of_the_full_designs_estimates(full: Dataset) -> None:
+    """The claim that the fraction adds rather than blurs, to floating-point tolerance.
+
+    This is the finding that does not depend on the noise draw: the resolution III design reports
+    ``D + AB`` whatever the data. The 5.3e-15 quoted in the README is the worst deviation across
+    every alias pair of both fractions.
+    """
+    complete = _estimates(full_factorial(FACTORIAL.factors), full)
+    worst = 0.0
+    for generators in (("D=ABC",), ("D=AB",)):
+        design = fractional_factorial(FACTORIAL.factors, generators)
+        estimates = _estimates(design, full)
+        for effect, partners in design.aliases().items():
+            if partners == (IDENTITY,):
+                assert np.isnan(estimates[effect])
+                continue
+            total = complete[effect] + sum(complete[word] for word in partners)
+            worst = max(worst, abs(total - estimates[effect]))
+    assert worst < 5.4e-15
+
+    # The two rows the README quotes, spelled out.
+    aliased = _estimates(fractional_factorial(FACTORIAL.factors, ("D=AB",)), full)
+    assert complete["D"] + complete["AB"] == pytest.approx(aliased["D"], abs=1e-12)
+    fourth = _estimates(fractional_factorial(FACTORIAL.factors, ("D=ABC",)), full)
+    assert complete["AB"] + complete["CD"] == pytest.approx(fourth["AB"], abs=1e-12)
+    assert complete["CD"] == pytest.approx(-0.0895, abs=5e-5)
+
+
+@pytest.mark.slow
+def test_the_detection_limit_table_reproduces(full: Dataset) -> None:
+    """What each run count could have seen, and the two ratios read off it."""
+    expected = {8: 3.5711, 16: 2.2600, 32: 1.5355, 64: 1.0672}
+    for n_runs, limit in expected.items():
+        assert detectable_effect(n_runs, FACTORIAL.noise_sd) == pytest.approx(limit, abs=5e-5)
+
+    complete = _estimates(full_factorial(FACTORIAL.factors), full)
+    spurious = complete[["C", "D", "AC", "AD", "BC", "BD", "CD"]].abs().max()
+    # The limit does its job against noise: the largest purely spurious estimate in the full
+    # design is below it.
+    assert spurious == pytest.approx(1.5494, abs=5e-5)
+    assert spurious < expected[16]
+
+    # And nothing at all against aliasing, which is a real effect in the wrong column.
+    aliased = _estimates(fractional_factorial(FACTORIAL.factors, ("D=AB",)), full)
+    assert aliased["D"] / expected[8] == pytest.approx(2.63, abs=5e-3)
+
+
+@pytest.mark.slow
+def test_two_four_letter_generators_can_still_give_resolution_two() -> None:
+    """The trap the README names: the relation closes, the generators do not."""
+    with pytest.raises(ValueError, match="resolution II"):
+        fractional_factorial(("a", "b", "c", "d", "e"), ("D=ABC", "E=BCD"))

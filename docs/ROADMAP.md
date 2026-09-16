@@ -154,12 +154,62 @@ on `(n, seed)`.
 Paired and blocked comparisons. And the regimes the simulation does not cover — heavy tails
 without skew, bimodality, and measurements rounded to a coarse gauge.
 
-## Wave 4 — Analyze: design of experiments
+## Wave 4 — Analyze: the design decides the conclusion
 
-*Not built.* Full and fractional factorials, aliasing and resolution, main effects and
-interactions. The point of interest is the same as wave 1's: a resolution-III design cannot
-separate a main effect from a two-factor interaction, and a run sheet that does not say so is
-selling a conclusion it cannot support.
+**Full and fractional factorials** *(complete —
+[`dmaic.analyze.factorial`](../src/dmaic/analyze/README-factorial.md))*. Designs built from
+generators that have to be written down, the defining relation closed rather than assumed, the
+alias structure as a first-class output, and effects returned with what each one is a sum of.
+
+The wave exists because the taught summary of a fraction understates it. "A resolution III design
+confounds main effects with two-factor interactions" is true and sounds statistical, as though the
+estimate came back with extra uncertainty on it. It does not. It comes back as the **exact
+arithmetic sum** of the two, so a factor with no effect at all reports the interaction's as its
+own — a large, clean-looking, entirely fictitious main effect, with nothing in the output to say
+so.
+
+One synthetic experiment carries the argument: a curing oven, four factors, sixteen runs, and two
+of the four factors set to exactly zero. The fractions select rows of those sixteen runs rather
+than being generated separately, so the comparison holds the data fixed and varies only the
+generator.
+
+- **The resolution III half fraction reports 9.4067 for a factor whose effect is exactly zero.**
+  Resin batch comes back as the second largest figure in the study, 1.88 times the real pressure
+  effect and 2.63 times the smallest effect eight runs could have detected. The two fractions cost
+  the same eight runs and read the same experiment, and they rank the factors differently: `D=ABC`
+  gives A, B, D, C and `D=AB` gives A, **D**, B, C. Only the generator differs, and choosing it is
+  free.
+- **The aliasing is an addition, verified as one.** `D + AB` is 1.5494 + 7.8573 = 9.4067, and every
+  alias pair of both fractions reproduces the full design's sum to 5.3e-15 — floating-point noise,
+  not statistical agreement. That is also why the good fraction is nearly free: `D=ABC` adds two
+  numbers too, and one of them is zero. It recovers the interaction at 7.7678 against the full
+  sixteen runs' 7.8573.
+- **A detection limit protects against noise and has no opinion about bias.** Eight runs can see
+  3.5711 MPa at this process's spread, sixteen can see 2.2600, and the largest purely spurious
+  estimate in the full design is 1.5494 — correctly below the limit, so a project would leave it
+  alone. The false 9.4067 is at 2.63 times the limit, because it is a real effect in the wrong
+  column.
+- **The resolution comes from the defining relation, not from the shortest generator.** `D=ABC`
+  and `E=BCD` are both four-letter generators; their words multiply to `AE`, two factors on one
+  column, resolution II. `fractional_factorial` refuses to build it rather than returning a run
+  sheet that looks like resolution IV.
+
+**A defect of my own, of exactly the kind this module is about.** A word of the defining relation
+has a constant contrast column, so the contrast computed on it is twice the grand mean rather than
+an effect of anything. The first version filtered the identity out of the alias list, which made
+`ABD` look like the one clean, estimable term in the resolution III design and gave it an
+"estimate" of 79.93 — a number that is not what its label says, which is the module's own
+accusation turned on itself. It was found by printing the alias table in the example, not by
+reading the code. The identity is now a first-class alias and such an effect returns `nan`.
+
+**And a gap in the earlier waves, closed here.** Wave 3's comparison table had no reproducibility
+pin of its own, so the stream-order tripwire was covering three of the four generator tables. All
+four first values are now pinned in one test.
+
+**Still to build in this phase:** centre points, so curvature is not invisible. Randomisation and
+blocking, which the module documents as the caller's problem rather than solving. Replication and
+the error estimate it buys. And the normal plot of effects, which is the conventional answer to an
+unreplicated design and deserves measuring rather than adopting.
 
 ## Wave 5 — Measure: what a gage study cannot tell you
 

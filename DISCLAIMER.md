@@ -9,13 +9,18 @@ generator whose parameters are written down in `src/dmaic/synth/config.py`. Runn
 `generate_dataset()` on the default seed reproduces every published number exactly.
 
 Gage names (`BALANCA-01`, `PAQUIMETRO-02`, `INSPECAO-03`), operator names (`OP-A`, `OP-B`,
-`OP-C`), part numbers and specification limits are **invented labels**. They are not references
-to any real instrument, person, part or specification, and any resemblance to one is
-coincidental.
+`OP-C`), part numbers and specification limits are **invented labels**. So are the pilot names
+(`PILOTO-CICLO`, `PILOTO-SETUP`, `PILOTO-REFUGO`), the group names in the comparisons (`TURNO-A`,
+`TURNO-B`, `LINHA-1`, `LINHA-2`, `CELULA-X`, `CELULA-Y`, `FORN-X`, `FORN-Y`) and the experiment
+(`FORNO-CURA`, with its factors and levels). They are not references to any real instrument,
+person, part, shift, line, cell, supplier, process or specification, and any resemblance to one
+is coincidental.
 
-The measurement systems in the generator were designed to make particular statistical situations
-visible — a gage whose two acceptance criteria disagree, a gage whose failure is the operators
-rather than the instrument — not to represent any real process.
+Everything in the generator was designed to make a particular statistical situation visible — a
+gage whose two acceptance criteria disagree, a gage whose failure is the operators rather than
+the instrument, a pilot too small to find its own effect, an experiment where two factors do
+exactly nothing — not to represent any real process. The effects, spreads and sample sizes were
+chosen for what they demonstrate.
 
 This repository is a portfolio of methods. It is not a report about any operation.
 
@@ -33,12 +38,17 @@ com semente cujos parâmetros estão escritos em `src/dmaic/synth/config.py`. Ro
 `generate_dataset()` na semente padrão reproduz exatamente todo número publicado.
 
 Nomes de gage (`BALANCA-01`, `PAQUIMETRO-02`, `INSPECAO-03`), nomes de operador (`OP-A`, `OP-B`,
-`OP-C`), números de peça e limites de especificação são **rótulos inventados**. Não são
-referências a nenhum instrumento, pessoa, peça ou especificação real, e qualquer semelhança é
-coincidência.
+`OP-C`), números de peça e limites de especificação são **rótulos inventados**. Também são os
+nomes dos pilotos (`PILOTO-CICLO`, `PILOTO-SETUP`, `PILOTO-REFUGO`), os nomes dos grupos nas
+comparações (`TURNO-A`, `TURNO-B`, `LINHA-1`, `LINHA-2`, `CELULA-X`, `CELULA-Y`, `FORN-X`,
+`FORN-Y`) e o experimento (`FORNO-CURA`, com seus fatores e níveis). Não são referências a
+nenhum instrumento, pessoa, peça, turno, linha, célula, fornecedor, processo ou especificação
+real, e qualquer semelhança é coincidência.
 
-Os sistemas de medição do gerador foram desenhados para tornar visíveis situações estatísticas
-específicas — um gage cujos dois critérios de aceitação discordam, um gage cuja reprovação são os
-operadores e não o instrumento — e não para representar processo real algum.
+Tudo no gerador foi desenhado para tornar visível uma situação estatística específica — um gage
+cujos dois critérios de aceitação discordam, um gage cuja reprovação são os operadores e não o
+instrumento, um piloto pequeno demais para achar o próprio efeito, um experimento em que dois
+fatores não fazem absolutamente nada — e não para representar processo real algum. Os efeitos, as
+dispersões e os tamanhos de amostra foram escolhidos pelo que demonstram.
 
 Este repositório é um portfólio de métodos. Não é um relatório sobre operação alguma.
