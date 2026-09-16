@@ -2,13 +2,14 @@
 
 *[Português](#dmaicmeasure--as-leituras-sustentam-a-decisão)*
 
-Two questions, and the standard study only answers one of them. Each has its own document because
+Three questions, and the standard study answers one of them. Each has its own document because
 each is worth reading in full.
 
 | Question | What it decides | Document |
 | --- | --- | --- |
 | Can the gage tell the parts apart? | Whether any later number means anything | [`README-msa.md`](README-msa.md) |
 | Is the gage right? | Which parts get shipped and which get scrapped | [`README-accuracy.md`](README-accuracy.md) |
+| How long does either answer last? | When it needs recalibrating, and whether the study's verdict is about the instrument or the calendar | [`README-stability.md`](README-stability.md) |
 
 **The first is the gate every other number depends on.** A capability index, a hypothesis test and
 a factorial effect are all computed on readings. Three synthetic gages show what the study
@@ -23,9 +24,16 @@ rather than a small sensitivity. `BALANCA-01` passes the crossed study on both c
 of tolerance and reads **7.82% of tolerance heavy**, and that error costs 3,356 ppm of conforming
 parts scrapped against 161 ppm calibrated.
 
+**The third is about the date, and both of the others are snapshots.** `BALANCA-01` drifts
+0.105428 g a day, so five percent of its tolerance is spent in **22.8 days** and the 4 g offset
+above is the same instrument seen on day 38. Worse, a crossed study spread over two weeks puts the
+drift in whichever ANOVA term the schedule aligns it with: give each operator their own day and
+reproducibility inflates **2.51×** while repeatability does not move at all. The calendar, reported
+as the people.
+
 ## Assumptions and limitations
 
-Each document carries its own, in detail. The two that span both:
+Each document carries its own, in detail. The two that span all three:
 
 - **Neither study measures the operator's decision, only the reading.** A gage that resolves the
   part perfectly, read by an inspector applying a rule of thumb, produces a decision no study
@@ -40,13 +48,14 @@ Each document carries its own, in detail. The two that span both:
 
 *[English](#dmaicmeasure--can-the-readings-carry-the-decision)*
 
-Duas perguntas, e o estudo padrão responde só uma delas. Cada uma tem seu documento porque cada
-uma vale leitura integral.
+Três perguntas, e o estudo padrão responde uma delas. Cada uma tem seu documento porque cada uma
+vale leitura integral.
 
 | Pergunta | O que decide | Documento |
 | --- | --- | --- |
 | O gage consegue distinguir as peças? | Se qualquer número posterior significa algo | [`README-msa.md`](README-msa.md) |
 | O gage está certo? | Quais peças são expedidas e quais são refugadas | [`README-accuracy.md`](README-accuracy.md) |
+| Quanto tempo cada resposta dura? | Quando recalibrar, e se o veredito do estudo é sobre o instrumento ou sobre o calendário | [`README-stability.md`](README-stability.md) |
 
 **A primeira é o portão de que todo outro número depende.** Um índice de capabilidade, um teste de
 hipótese e um efeito fatorial são todos calculados sobre leituras. Três gages sintéticos mostram o
@@ -61,9 +70,16 @@ sensibilidade pequena. O `BALANCA-01` passa no estudo cruzado nos dois critério
 tolerância, e lê **7,82% da tolerância acima**, e esse erro custa 3.356 ppm de peças conformes
 refugadas contra 161 ppm calibrado.
 
+**A terceira é sobre a data, e as outras duas são retratos.** O `BALANCA-01` deriva 0,105428 g por
+dia, então cinco por cento da tolerância dele são gastos em **22,8 dias** e o desvio de 4 g acima é
+o mesmo instrumento visto no dia 38. Pior, um estudo cruzado espalhado por duas semanas põe a deriva
+no termo da ANOVA com o qual a agenda a alinhar: dê a cada operador o seu dia e a reprodutibilidade
+infla **2,51×** enquanto a repetibilidade não se move. O calendário, reportado como sendo das
+pessoas.
+
 ## Premissas e limitações
 
-Cada documento carrega as suas, em detalhe. As duas que valem para ambos:
+Cada documento carrega as suas, em detalhe. As duas que valem para as três:
 
 - **Nenhum dos estudos mede a decisão do operador, apenas a leitura.** Um gage que resolve a peça
   perfeitamente, lido por um inspetor aplicando uma regra de bolso, produz uma decisão que nenhum

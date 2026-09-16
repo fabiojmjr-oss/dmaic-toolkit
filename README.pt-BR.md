@@ -18,8 +18,9 @@ escritos. Ver [`DISCLAIMER.md`](DISCLAIMER.md).
 
 | Módulo | Fase | Decisão que habilita |
 | --- | --- | --- |
-| [`dmaic.measure`](src/dmaic/measure/README.md) | Measure | Este sistema de medição distingue as peças, ele está certo, e quanto custa estar errado? |
+| [`dmaic.measure`](src/dmaic/measure/README.md) | Measure | Este sistema de medição distingue as peças, ele está certo, quanto tempo isso dura, e quanto custa estar errado? |
 | [`dmaic.analyze`](src/dmaic/analyze/README.md) | Analyze | De quanto dado este teste precisa, ele mantém a taxa de erro que alega, e o experimento consegue separar os efeitos sobre os quais está sendo perguntado? |
+| [`dmaic.control`](src/dmaic/control/README.md) | Control | O que este plano de amostragem de fato pega, o que ele deixa passar, e o que a inspeção comprou? |
 
 O [`docs/ROADMAP.md`](docs/ROADMAP.md) lista as fases ainda não construídas, e explica por que a
 fase Control é deliberadamente mais estreita do que parece.
@@ -227,6 +228,75 @@ consequência, a mesma anticorrelação com a utilidade que a onda 3 achou no pr
 normalidade, e é por isso que o `BiasStudy` reporta significância e materialidade como dois
 achados separados.
 
+### Onda 6 — a janela em que o estudo foi rodado, e o plano que vem depois
+
+Duas perguntas que ninguém anota: **quanto tempo uma resposta de medição dura** e **o que um plano
+de amostragem de fato garante**. As duas acabam sendo respondidas por um número para o qual o
+formulário não tem campo.
+
+**Um estudo de gage é um retrato e nada registra a data.** `BALANCA-01`, acompanhado desde o dia em
+que foi calibrado — quatro leituras num padrão a cada cinco dias, por sessenta dias:
+
+| Figura | Valor |
+| --- | --- |
+| Deriva recuperada | **+0,105428 g/dia** (embutida: +0,10) |
+| Desvio deixado no dia 0 | −0,0932 g — a calibração em si estava boa |
+| Desvio no dia 60 | **+6,2325 g**, 12,47% da tolerância |
+| Intervalo até 5% da tolerância | **22,8 dias** |
+| Dispersão residual em torno da reta | 0,5894 g, contra os 0,56 do próprio gage |
+
+O desvio de 4 g que a onda 5 achou chega no **dia 37,9** nesta taxa. Um viés constante e uma deriva
+medida tarde são a mesma leitura e não o mesmo problema: uma tara se remove uma vez, uma deriva
+compra um intervalo.
+
+**E a agenda de um estudo cruzado decide em que termo a deriva cai.** O mesmo estudo 10 × 3 × 3,
+espalhado por duas semanas, com **leituras idênticas e dias idênticos** — só o mapeamento de dias
+muda:
+
+| Agenda | EV | AV | GRR | % estudo | ndc | Fonte dominante | Veredito |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| Um operador por dia | **0,6430** | **1,0081** | 1,1957 | 12,68 | 11 | **reprodutibilidade** | condicional |
+| Todo operador todo dia | 0,9161 | 0,3829 | 0,9929 | 10,56 | 13 | repetibilidade | condicional |
+| Deriva removida | 0,6430 | 0,4010 | 0,7578 | 8,08 | 17 | repetibilidade | **aceitável** |
+
+Dar a cada operador o seu dia infla a reprodutibilidade em **2,51×** e deixa a repetibilidade
+intacta até a quarta decimal. O calendário, reportado como sendo das pessoas — e um projeto lendo
+esse estudo retreinaria três operadores que não fizeram nada errado. Intercalar põe a mesma deriva
+na repetibilidade (1,42×) e deixa a estimativa dos operadores intacta, que é o lugar certo dela e
+ainda não é uma repetibilidade. As duas agendas com deriva voltam *condicional* onde o instrumento
+em qualquer dia único é *aceitável*: o veredito do próprio estudo depende de quanto tempo ele levou.
+
+**Um plano de amostragem é uma curva, e "inspecionar dez por cento" é o plano cujo tamanho de
+amostra foi escolhido por uma decisão de expedição.** Lotes bons 0,5% defeituosos, excursões 4,0%:
+
+| Tamanho do lote | Regra 10%, n | Aceita lotes bons | Aceita excursões | n=80 bons | n=80 excursões |
+| --- | --- | --- | --- | --- | --- |
+| 100 | 10 | 1,000000 | **0,651631** | 1,000000 | 0,001236 |
+| 1.000 | 100 | 0,589832 | 0,013520 | 0,658507 | 0,033206 |
+| 20.000 | 2.000 | **0,000026** | ~0 | 0,669115 | 0,037917 |
+
+A mesma regra escrita vai de aceitar duas excursões em três a rejeitar 99,997% de material
+perfeitamente bom. Uma amostra fixa de oitenta mantém as duas cifras estáveis.
+
+**Um nível de qualidade aceitável é risco do produtor.** `n=125, c=3` citado como AQL 1,0% rejeita
+2,7% dos lotes a 1% de defeituosos — exatamente como anunciado — e aceita **47,1%** dos lotes a 3%.
+E aceitação zero não é a opção rígida: casada ao mesmo risco do produtor exige uma amostra de
+**três** e aceita 88,5% dos lotes de 4%, enquanto no mesmo tamanho de amostra rejeita **73,9%** da
+produção boa. A discriminação vem do tamanho da amostra, não do número de aceitação.
+
+**O que cada plano comprou**, nos mesmos 200 lotes (1.478 unidades defeituosas no total):
+
+| Plano | Unidades inspecionadas | Excursões pegas | Lotes bons rejeitados | Unidades defeituosas expedidas |
+| --- | --- | --- | --- | --- |
+| 10% do lote, c=0 | 20.000 | **12/12** | **70** | 543 |
+| n=125 c=3 (AQL 1,0%) | 25.000 | 9/12 | 0 | **1.098** |
+| Desenhado para 1% vs 4% | 37.800 | **10/12** | **1** | 1.066 |
+| Sem inspeção | 0 | 0/12 | 0 | 1.478 |
+
+O plano publicado inspeciona 25.000 unidades e expede três quartos dos defeitos. O plano que pega
+todas as excursões faz isso pondo em quarentena mais de um terço da produção boa — não é
+discriminante, é duro. Amostragem separa lotes; não muda o que tem dentro deles.
+
 ## Exemplos
 
 | Script | O que mostra |
@@ -236,12 +306,14 @@ achados separados.
 | [`03_which_test_and_can_it_be_trusted.py`](examples/03_which_test_and_can_it_be_trusted.py) | O fluxograma ensinado, medido contra sempre usar Welch. Ele perde |
 | [`04_the_generator_decides_the_conclusion.py`](examples/04_the_generator_decides_the_conclusion.py) | Um experimento, três desenhos, e um fator que não faz nada reportado como o segundo maior |
 | [`05_the_gage_passed_and_it_is_wrong.py`](examples/05_the_gage_passed_and_it_is_wrong.py) | O gage que o estudo aprovou, medido contra padrões, e quanto o viés dele custa em peças |
+| [`06_the_study_took_two_weeks.py`](examples/06_the_study_took_two_weeks.py) | Um gage derivando: o intervalo de calibração, e a agenda que culpa os operadores pelo calendário |
+| [`07_what_the_sampling_plan_guarantees.py`](examples/07_what_the_sampling_plan_guarantees.py) | Cinco planos de amostragem nos mesmos duzentos lotes, e o que cada um de fato comprou |
 
 ## Verificação
 
-**152 testes, 95% de cobertura de statements, separados por custo.** 130 deles rodam em cerca de
-sete segundos, e a sequência inteira do `make check` — linters, tipos, cobertura e tudo — em cerca
-de nove. É isso que barra um push. Os 22 restantes re-derivam toda figura citada em um README e
+**189 testes, 96% de cobertura de statements, separados por custo.** 162 deles rodam em cerca de
+dez segundos, e a sequência inteira do `make check` — linters, tipos, cobertura e tudo — em cerca
+de onze. É isso que barra um push. Os 27 restantes re-derivam toda figura citada em um README e
 rodam todo script de exemplo, em cerca de doze segundos.
 
 A ANOVA do gage é verificada contra um desenho 2×2×2 cujas somas de quadrados são inteiras (242,

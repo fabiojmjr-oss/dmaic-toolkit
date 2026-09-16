@@ -447,3 +447,95 @@ REFERENCES = (
         bias_slope=0.0,
     ),
 )
+
+
+@dataclass(frozen=True)
+class DriftProfile:
+    """One gage that does not stay where it was calibrated, measured two ways.
+
+    The same instrument is described twice here because a drift produces two entirely separate
+    problems. Periodic checks against a master say *how long a calibration lasts*. A crossed study
+    whose sessions fall on different days says something else: the drift lands in whichever term
+    of the ANOVA the **schedule** happens to align it with, and the schedule is not recorded on
+    any gage study form.
+
+    Attributes:
+        gage: Must name a profile in :data:`GAGES`, whose part, operator and repeatability spreads
+            are reused, so the drift is the only thing added.
+        drift_per_day: How far the gage moves per day since its last calibration, signed.
+        session_gap_days: Days between sessions of the crossed study. Operators are rarely
+            available on the same day, so a study spread over weeks is the normal case rather
+            than the awkward one.
+        schedules: The day mappings compared. ``"sequential"`` gives each operator their own day,
+            which is how a study gets scheduled when people are busy. ``"interleaved"`` has every
+            operator measure on every day.
+        check_every_days: Interval between periodic checks against the master.
+        check_span_days: How long the periodic checking runs for.
+        readings_per_check: Readings taken at each check.
+    """
+
+    gage: str
+    drift_per_day: float
+    session_gap_days: int
+    schedules: tuple[str, ...]
+    check_every_days: int
+    check_span_days: int
+    readings_per_check: int
+
+
+# One drifting gage, and the rate is chosen to make a point that is arithmetic rather than
+# empirical: 0.10 g per day is exactly the rate at which wave 5's 4.0 g offset appears 40 days
+# after a calibration. The constant bias that study found and the drift this one measures are the
+# same instrument seen twice, and they need different answers - a tare is removed once, a drift
+# buys an interval.
+DRIFTS = (
+    DriftProfile(
+        gage="BALANCA-01",
+        drift_per_day=0.10,
+        session_gap_days=7,
+        schedules=("sequential", "interleaved"),
+        check_every_days=5,
+        check_span_days=60,
+        readings_per_check=4,
+    ),
+)
+
+
+@dataclass(frozen=True)
+class LotProfile:
+    """Lots arriving for acceptance inspection, most of them fine and a few not.
+
+    A process that fails gradually is not what acceptance sampling is for. What it is for is the
+    excursion: a run of material that came out much worse than usual, mixed in with lots that are
+    fine. The two states are declared so that an accepted lot can be named as an escape.
+
+    Attributes:
+        stream: Label for the incoming material.
+        lots: How many lots arrive.
+        lot_size: Units per lot.
+        excursion_share: Probability that a lot is an excursion rather than in control.
+        in_control_fraction: True defective fraction of an in-control lot.
+        excursion_fraction: True defective fraction of an excursion lot.
+    """
+
+    stream: str
+    lots: int
+    lot_size: int
+    excursion_share: float
+    in_control_fraction: float
+    excursion_fraction: float
+
+
+# Two hundred lots of a thousand units. One in ten is an excursion at eight times the ordinary
+# defect rate, which is the case every sampling plan is bought to catch and the case its published
+# acceptance quality level says nothing about.
+LOTS = (
+    LotProfile(
+        stream="COMPONENTE-X",
+        lots=200,
+        lot_size=1000,
+        excursion_share=0.10,
+        in_control_fraction=0.005,
+        excursion_fraction=0.040,
+    ),
+)

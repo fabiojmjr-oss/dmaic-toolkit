@@ -272,28 +272,103 @@ never the question. Cost always is, which is the more useful thing to say.
 freedom and the same noncentrality as the paired test wave 2 already built, so `detectable_bias`
 solves `power_paired` rather than reimplementing the noncentral t.
 
-**Still to build in this phase:** stability, which is the third property and the one whose absence
-is most easily missed — a reference study run inside one session cannot see drift, and its
-repeatability then understates what the gage does over a month. The duration of a study is a
-parameter of its answer and appears nowhere on the form. Also nested designs, for destructive
-testing where no two operators can measure the same part, and attribute agreement, where the
-measurement is a judgement rather than a number.
+**Stability was the declared gap here and wave 6 closed it**, including the part that was not
+anticipated: the duration of a study is a parameter of its answer, and so is the *order* the
+sessions were run in. What remains in this phase is nested designs, for destructive testing where
+no two operators can measure the same part, and attribute agreement, where the measurement is a
+judgement rather than a number.
 
-## Wave 6 — Define and Improve
+## Wave 6 — the window a study was run in, and the plan that follows it
+
+**Stability** *(complete —
+[`dmaic.measure.stability`](../src/dmaic/measure/README-stability.md))* and **acceptance
+sampling** *(complete — [`dmaic.control`](../src/dmaic/control/README.md))*. Two questions nobody
+writes down, and both turn out to be answered by a field no form has.
+
+Stability closes the gap wave 5 declared. A gage study and a bias study are snapshots, and nothing
+on either form records how far the day of the readings sits from the last calibration.
+
+- **`BALANCA-01` drifts 0.105428 g a day** (0.10 built in), so five percent of its tolerance is
+  spent in **22.8 days** and the offset reaches 12.47% of tolerance by day 60. The offset left
+  behind on day zero is −0.0932 g: the calibration was fine, and the instrument does not stay
+  where it was put. The residual spread around the fitted line, 0.5894, lands on the gage's own
+  repeatability of 0.56, which is the check that this is a drift rather than scatter given a slope.
+- **The 4 g offset of wave 5 arrives on day 37.9 at this rate.** That is a construction of the
+  generator rather than a discovery — 4.0 ÷ 0.10 is exactly 40 — and it is the point worth
+  carrying out of both waves. A constant bias and a drift measured late are the same reading and
+  not the same problem: a tare is removed once, a drift buys an interval.
+- **The schedule of a crossed study decides which ANOVA term the drift lands in.** Identical
+  readings, identical days, and only the day mapping differs. Give each operator their own day and
+  reproducibility inflates **2.51×** while repeatability does not move at all to four decimals: the
+  calendar, reported as the people, and a project reading it would retrain three operators who did
+  nothing wrong. Interleave and the same drift goes into repeatability (1.42×) with the operator
+  estimate almost intact — the right place for it, and still not a repeatability, since the term is
+  now carrying two weeks. Both drifted schedules come back *conditional* where the instrument on
+  any single day is *acceptable*.
+- **That second finding needed no new function**, which is its point: the evidence is in a study
+  the project has already run, as long as somebody wrote down the date.
+
+Acceptance sampling opens the Control phase, and the phase is narrower than it looks for the reason
+set out below: charts are not here.
+
+- **"Inspect ten percent" controls nothing.** The only number in the rule that matters is the
+  sample size, and it is set by the lot size — a shipping decision. The same written rule accepts
+  **65.2%** of excursion lots on a lot of a hundred and rejects **99.997%** of perfectly good
+  material on a lot of twenty thousand. A fixed sample of eighty holds both figures steady across
+  every lot size above five hundred, which is the property the percentage rule is assumed to have.
+- **An acceptance quality level is a producer's risk, not a promise.** `n=125, c=3` quoted at AQL
+  1.0% rejects 2.7% of lots at 1% defective, exactly as advertised, and accepts **47.1%** of lots at
+  three times that level. The average outgoing quality column says the rest: it has a maximum, so a
+  plan bounds outgoing quality above zero rather than improving it.
+- **A zero acceptance number is not the strict option.** Matched to the same producer's risk it
+  takes a sample of **three** and accepts 88.5% of 4% lots; held at the same sample size it rejects
+  **73.9%** of good production. Discrimination comes from the sample size, and the acceptance number
+  is not a strictness dial.
+- **What the inspection bought, on 200 real lots.** The published plan inspects 25,000 units and
+  ships 1,098 of 1,478 defectives. The plan that catches every excursion quarantines 70 good lots
+  out of 188 — not discriminating, just harsh. Designing to both quality levels catches 10 of 12
+  excursions while rejecting one good lot, and costs 37,800 units inspected. That is the trade,
+  priced.
+
+**A fourth instance of a defect I had already fixed twice.** Wave 5 handled a fitted standard error
+of exactly zero. `scipy` returns **`nan`** when the response is constant, which is what a perfectly
+stable gage and a perfectly flat linearity line both produce — so the guard missed both, and
+`accuracy.linearity_study` was still returning `nan` for a p-value after its fix was published. The
+wave-5 test hid it by asserting the verdict string rather than the p-value. The limit now lives in
+one place, `dmaic._limits.slope_p_value`, and both modules take it there.
+
+**And one `assert` removed from library code.** `matched_plan` searched for the best sample size
+with the result starting as ``None`` and an assertion that the loop had run. The assertion was true
+and it was also the wrong shape: an assert is compiled out under optimisation, so a guarantee that
+matters cannot live in one. The search now starts from the smallest valid plan and the impossible
+case — an acceptance number larger than the lot — raises with a message that names it.
+
+**A test expectation of mine was wrong rather than the code.** I asserted the average outgoing
+quality reaches zero at a high incoming defective level. It does not: a 12% lot is still accepted
+about once in two thousand times, so the figure falls away without arriving.
+
+**Still to build in this phase:** double and sequential sampling plans, which reach the same two
+risk points with a smaller average sample. Switching rules, which is where most of a published
+scheme's protection actually comes from. And attribute agreement, where the measurement is a
+judgement rather than a number — the gap that makes every sampling figure conditional on an
+inspector nobody studied.
+
+## Wave 7 — Define and Improve
 
 *Not built.* Define artifacts that carry arithmetic rather than formatting — a charter whose
 benefit case is computable, CTQ trees with measurable leaves. Improve: pilot design, and
 benefit realisation measured against a counterfactual rather than against last quarter.
 
-## Wave 7 — Control: the plan, not the chart
+## Wave 8 — Control: the rest of the plan
 
-*Not built, and deliberately narrower than it looks.* Control plans, sampling plan design and
-sustaining verification — whether the gain held, measured.
+*Not built.* Control plans as documents that carry arithmetic, and sustaining verification —
+whether the gain held, measured against a counterfactual rather than against last quarter.
 
-**Control charts are not in scope.** Charts, Nelson run rules and capability against
+**Control charts remain out of scope.** Charts, Nelson run rules and capability against
 within-subgroup sigma already exist in the sibling `oplab.spc` package. Reimplementing them here
 would put the same code in two repositories under one name, which reads as padding to anyone who
-opens both. This toolkit references it instead.
+opens both. This toolkit references it instead, and wave 6's sampling module says explicitly that
+acceptance sampling is not a substitute for it.
 
 ## Cross-cutting
 

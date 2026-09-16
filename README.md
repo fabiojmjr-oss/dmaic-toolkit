@@ -17,8 +17,9 @@ table is produced by a seeded generator whose parameters are written down. See
 
 | Module | Phase | Decision it enables |
 | --- | --- | --- |
-| [`dmaic.measure`](src/dmaic/measure/README.md) | Measure | Can this measurement system tell the parts apart, is it right, and what does being wrong cost? |
+| [`dmaic.measure`](src/dmaic/measure/README.md) | Measure | Can this measurement system tell the parts apart, is it right, how long does that last, and what does being wrong cost? |
 | [`dmaic.analyze`](src/dmaic/analyze/README.md) | Analyze | How much data does this test need, does it hold the error rate it claims, and can the experiment separate the effects it is being asked about? |
+| [`dmaic.control`](src/dmaic/control/README.md) | Control | What does this sampling plan actually catch, what does it let through, and what did the inspection buy? |
 
 [`docs/ROADMAP.md`](docs/ROADMAP.md) lists the phases not yet built, and says why the Control
 phase is deliberately narrower than it looks.
@@ -225,6 +226,75 @@ the worse the gage, the more easily it passes. The verdict tracks the gage's pre
 the consequence, the same anti-correlation with usefulness wave 3 found in the normality
 pre-test, which is why `BiasStudy` reports significance and materiality as two separate findings.
 
+### Wave 6 — the window the study was run in, and the plan that follows it
+
+Two questions nobody writes down: **how long does a measurement answer last**, and **what does a
+sampling plan actually guarantee**. Both turn out to be answered by a number the form has no field
+for.
+
+**A gage study is a snapshot and nothing records the date.** `BALANCA-01`, watched from the day it
+was calibrated — four readings on a master every five days for sixty days:
+
+| Figure | Value |
+| --- | --- |
+| Drift recovered | **+0.105428 g/day** (built in: +0.10) |
+| Offset left behind on day 0 | −0.0932 g — the calibration itself was fine |
+| Offset on day 60 | **+6.2325 g**, 12.47% of tolerance |
+| Interval to 5% of tolerance | **22.8 days** |
+| Residual spread around the line | 0.5894 g, against the gage's own 0.56 |
+
+The 4 g offset wave 5 found arrives on **day 37.9** at this rate. A constant bias and a drift
+measured late are the same reading and not the same problem: a tare is removed once, a drift buys
+an interval.
+
+**And the schedule of a crossed study decides which term the drift lands in.** The same 10 × 3 × 3
+study, spread over two weeks, with **identical readings and identical days** — only the day mapping
+differs:
+
+| Schedule | EV | AV | GRR | % study | ndc | Dominant source | Verdict |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| One operator per day | **0.6430** | **1.0081** | 1.1957 | 12.68 | 11 | **reproducibility** | conditional |
+| Every operator every day | 0.9161 | 0.3829 | 0.9929 | 10.56 | 13 | repeatability | conditional |
+| Drift removed | 0.6430 | 0.4010 | 0.7578 | 8.08 | 17 | repeatability | **acceptable** |
+
+Giving each operator their own day inflates reproducibility **2.51×** and leaves repeatability
+untouched to four decimals. The calendar, reported as the people — and a project reading that study
+would retrain three operators who did nothing wrong. Interleaving puts the same drift in
+repeatability (1.42×) and leaves the operator estimate intact, which is the right place for it and
+still not a repeatability. Both drifted schedules come back *conditional* where the instrument on
+any single day is *acceptable*: the study's own verdict depends on how long it took to run.
+
+**A sampling plan is a curve, and "inspect ten percent" is the plan whose sample size a shipping
+decision chose.** Good lots 0.5% defective, excursions 4.0%:
+
+| Lot size | 10% rule, n | Accepts good lots | Accepts excursions | n=80 good | n=80 excursions |
+| --- | --- | --- | --- | --- | --- |
+| 100 | 10 | 1.000000 | **0.651631** | 1.000000 | 0.001236 |
+| 1,000 | 100 | 0.589832 | 0.013520 | 0.658507 | 0.033206 |
+| 20,000 | 2,000 | **0.000026** | ~0 | 0.669115 | 0.037917 |
+
+The same written rule runs from accepting two excursions in three to rejecting 99.997% of
+material that is perfectly fine. A fixed sample of eighty holds both numbers steady.
+
+**An acceptance quality level is a producer's risk.** `n=125, c=3` quoted at AQL 1.0% rejects 2.7%
+of lots at 1% defective — exactly as advertised — and accepts **47.1%** of lots at 3%. And a zero
+acceptance number is not the strict option: matched to the same producer's risk it takes a sample of
+**three** and accepts 88.5% of 4% lots, while at the same sample size it rejects **73.9%** of good
+production. Discrimination comes from the sample size, not from the acceptance number.
+
+**What each plan bought**, on the same 200 lots (1,478 defective units in total):
+
+| Plan | Units inspected | Excursions caught | Good lots rejected | Defective units shipped |
+| --- | --- | --- | --- | --- |
+| 10% of the lot, c=0 | 20,000 | **12/12** | **70** | 543 |
+| n=125 c=3 (AQL 1.0%) | 25,000 | 9/12 | 0 | **1,098** |
+| Designed for 1% vs 4% | 37,800 | **10/12** | **1** | 1,066 |
+| No inspection | 0 | 0/12 | 0 | 1,478 |
+
+The published plan inspects 25,000 units and ships three quarters of the defects. The plan that
+catches every excursion does it by quarantining more than a third of good production — it is not
+discriminating, it is harsh. Sampling sorts lots; it does not change what is in them.
+
 ## Examples
 
 | Script | What it shows |
@@ -234,12 +304,14 @@ pre-test, which is why `BiasStudy` reports significance and materiality as two s
 | [`03_which_test_and_can_it_be_trusted.py`](examples/03_which_test_and_can_it_be_trusted.py) | The taught flowchart, measured against always using Welch. It loses |
 | [`04_the_generator_decides_the_conclusion.py`](examples/04_the_generator_decides_the_conclusion.py) | One experiment, three designs, and a factor that does nothing reported as the second largest |
 | [`05_the_gage_passed_and_it_is_wrong.py`](examples/05_the_gage_passed_and_it_is_wrong.py) | The gage the study approved, measured against masters, and what its bias costs in parts |
+| [`06_the_study_took_two_weeks.py`](examples/06_the_study_took_two_weeks.py) | A drifting gage: the calibration interval, and the schedule that blames the operators for the calendar |
+| [`07_what_the_sampling_plan_guarantees.py`](examples/07_what_the_sampling_plan_guarantees.py) | Five sampling plans on the same two hundred lots, and what each one actually bought |
 
 ## Verification
 
-**152 tests, 95% statement coverage, split by cost.** 130 of them run in about seven seconds,
-and the whole `make check` sequence — linters, type check, coverage and all — in about nine. That
-is what a push is gated on. The remaining 22 re-derive every figure quoted in a README and run
+**189 tests, 96% statement coverage, split by cost.** 162 of them run in about ten seconds,
+and the whole `make check` sequence — linters, type check, coverage and all — in about eleven. That
+is what a push is gated on. The remaining 27 re-derive every figure quoted in a README and run
 every example script, in about twelve seconds.
 
 The gage ANOVA is verified against a 2×2×2 design whose sums of squares are integers (242, 50, 2

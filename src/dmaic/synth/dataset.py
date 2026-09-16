@@ -9,8 +9,10 @@ import pandas as pd
 
 from .comparison import comparison_designs, group_comparisons
 from .config import SEED
+from .drift import drift_designs, drift_studies, stability_checks
 from .factorial import factorial_effects, factorial_runs
 from .gage import gage_studies, specifications
+from .lots import inspection_lots, lot_designs
 from .reference import reference_designs, reference_studies
 from .trial import improvement_trials, trial_designs
 
@@ -30,6 +32,11 @@ class Dataset:
         factorial_effects: One row per effect of each experiment, including the ones set to zero.
         reference_studies: One row per reading taken on a calibrated master.
         reference_designs: One row per gage, with the bias actually built into it.
+        drift_studies: One row per reading of a crossed study run under each schedule.
+        stability_checks: One row per periodic reading taken on a master.
+        drift_designs: One row per drifting gage, with the rate built into it.
+        inspection_lots: One row per lot arriving for acceptance inspection.
+        lot_designs: One row per stream, with the two states' true defect rates.
     """
 
     gage_studies: pd.DataFrame
@@ -42,6 +49,11 @@ class Dataset:
     factorial_effects: pd.DataFrame
     reference_studies: pd.DataFrame
     reference_designs: pd.DataFrame
+    drift_studies: pd.DataFrame
+    stability_checks: pd.DataFrame
+    drift_designs: pd.DataFrame
+    inspection_lots: pd.DataFrame
+    lot_designs: pd.DataFrame
 
 
 def generate_dataset(seed: int = SEED) -> Dataset:
@@ -73,4 +85,10 @@ def generate_dataset(seed: int = SEED) -> Dataset:
         # Appended after the experiment, so waves 1 to 4 are untouched by wave 5.
         reference_studies=reference_studies(rng),
         reference_designs=reference_designs(),
+        # Appended after the reference studies, so waves 1 to 5 are untouched by wave 6.
+        drift_studies=drift_studies(rng),
+        stability_checks=stability_checks(rng),
+        drift_designs=drift_designs(),
+        inspection_lots=inspection_lots(rng),
+        lot_designs=lot_designs(),
     )
