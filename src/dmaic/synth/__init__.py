@@ -10,6 +10,7 @@ from .config import (
     GAGES,
     OPERATORS,
     PARTS,
+    REFERENCES,
     REPLICATES,
     SEED,
     TRIALS,
@@ -17,11 +18,13 @@ from .config import (
     FactorialProfile,
     FactorSetting,
     GageProfile,
+    ReferenceProfile,
     TrialProfile,
 )
 from .dataset import Dataset, generate_dataset
 from .factorial import factorial_effects, factorial_runs
 from .gage import GAGE_COLUMNS, gage_studies, specifications
+from .reference import REFERENCE_COLUMNS, reference_designs, reference_studies
 from .trial import ARMS, TRIAL_COLUMNS, improvement_trials, trial_designs
 
 __all__ = [
@@ -33,6 +36,8 @@ __all__ = [
     "GAGE_COLUMNS",
     "OPERATORS",
     "PARTS",
+    "REFERENCES",
+    "REFERENCE_COLUMNS",
     "REPLICATES",
     "SEED",
     "TRIALS",
@@ -42,6 +47,7 @@ __all__ = [
     "FactorSetting",
     "FactorialProfile",
     "GageProfile",
+    "ReferenceProfile",
     "TrialProfile",
     "comparison_designs",
     "factorial_effects",
@@ -50,6 +56,8 @@ __all__ = [
     "generate_dataset",
     "group_comparisons",
     "improvement_trials",
+    "reference_designs",
+    "reference_studies",
     "specifications",
     "trial_designs",
 ]

@@ -213,10 +213,71 @@ unreplicated design and deserves measuring rather than adopting.
 
 ## Wave 5 — Measure: what a gage study cannot tell you
 
-*Not built.* GRR measures precision, not accuracy: a gage can be perfectly repeatable and
-consistently wrong. Bias, linearity and stability studies need a reference standard, which means
-the generator needs one too. Also nested designs, for destructive testing where no two operators
-can measure the same part.
+**Accuracy against a reference** *(complete —
+[`dmaic.measure.accuracy`](../src/dmaic/measure/README-accuracy.md))*. Bias and linearity against
+calibrated masters, the significance and the materiality of an offset reported as two separate
+findings, and the consequence converted into conforming parts scrapped and nonconforming parts
+shipped.
+
+The wave exists because a crossed gage study is not a weak test of accuracy, it is **invariant**
+to it. Repeatability, reproducibility and part variation are all computed from differences between
+readings, so adding a constant to every reading in a study leaves every AIAG figure exactly
+unchanged — shifting all three synthetic gages by 1000 units moves the largest of them by 9.2e-12,
+which is floating point rather than sensitivity. Accuracy needs a value from outside the study,
+and that is what this wave puts into the generator.
+
+The same three gages are now measured against five masters each, twelve readings per master, with
+the offset the generator built in declared.
+
+- **`BALANCA-01` passed wave 1 on both criteria and is the worst gage of the three.** Its bias is
+  3.9076 g, **7.82% of the tolerance**, against the 5.69% that the entire GRR study measured. The
+  error nobody looked for is larger than the error everybody computed.
+- **`PAQUIMETRO-02` has no bias at nominal at all** — 0.58% of tolerance, p = 0.7113 — so the
+  one-point check every procedure prescribes passes it. Across its range the offset swings 0.1764
+  mm, **17.64% of the tolerance**, in opposite directions at the two specification limits.
+  Averaging bias over a range is how a gage with two large errors reports none.
+- **`INSPECAO-03` fails on precision and is accurate.** No bias, no slope. "Recalibrate it" would
+  change nothing, which is wave 1's split of GRR into repeatability and reproducibility arriving
+  at the same place in different units.
+- **The bias converts into parts, and the workaround costs more than the fix.** 3,356 ppm of
+  conforming parts scrapped against 161 ppm calibrated, and 734 ppm of nonconforming parts shipped
+  against 128. A guard band of 3.5890 g brings escapes exactly back to the calibrated rate and
+  pays for it with 13,618 ppm of scrap — **84.5 times** the calibrated rate, 1.36% of everything
+  produced. A calibration costs neither number, and without measuring the bias the guard band
+  looks like diligence.
+- **"The confidence interval contains zero" is not an acceptance rule.** Holding a 0.5 g offset
+  fixed — 1% of tolerance, immaterial — and varying only the gage's precision, the rule flags it
+  100% of the time on a precise gage and 7.17% on a sloppy one. The verdict is driven by the
+  gage's repeatability rather than by the consequence, which is the same anti-correlation with
+  usefulness wave 3 measured in the normality pre-test. `BiasStudy` therefore reports
+  `significant` and `material` separately, including the uncomfortable combination.
+
+**Three defects of my own, all in the same place, all found by the noiseless control cases.** A
+gage that reads the master identically every time has zero standard error, which is not a
+pathological input — a digital indicator displaying the same digit does it routinely. The first
+version divided by it. The same limit had to be taken twice more: a line fitted through points
+that lie exactly on a line has a slope standard error of zero, and returning `nan` there made
+`significant` false and produced the verdict "no linearity error detected" next to a slope of 0.5
+— a number contradicting its own label, which is precisely what this module accuses a passed GRR
+study of. And `detectable_bias` refused the zero standard deviation that `verdict()` then asked it
+for. All three limits are well defined and all three are now taken explicitly. Tests with
+realistic noise would never have found any of them.
+
+**One piece of dead code, removed rather than covered.** `guard_band` raised when no guard band
+could reach the target escape rate. Closing the acceptance window drives escapes to zero, so that
+branch is unreachable for any representable target: a width always exists, and feasibility is
+never the question. Cost always is, which is the more useful thing to say.
+
+**The one-sample case needed no new arithmetic.** A one-sample t-test has the same degrees of
+freedom and the same noncentrality as the paired test wave 2 already built, so `detectable_bias`
+solves `power_paired` rather than reimplementing the noncentral t.
+
+**Still to build in this phase:** stability, which is the third property and the one whose absence
+is most easily missed — a reference study run inside one session cannot see drift, and its
+repeatability then understates what the gage does over a month. The duration of a study is a
+parameter of its answer and appears nowhere on the form. Also nested designs, for destructive
+testing where no two operators can measure the same part, and attribute agreement, where the
+measurement is a judgement rather than a number.
 
 ## Wave 6 — Define and Improve
 

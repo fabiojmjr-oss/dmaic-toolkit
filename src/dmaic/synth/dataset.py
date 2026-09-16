@@ -11,6 +11,7 @@ from .comparison import comparison_designs, group_comparisons
 from .config import SEED
 from .factorial import factorial_effects, factorial_runs
 from .gage import gage_studies, specifications
+from .reference import reference_designs, reference_studies
 from .trial import improvement_trials, trial_designs
 
 
@@ -27,6 +28,8 @@ class Dataset:
         comparison_designs: One row per comparison, including whether a difference exists.
         factorial_runs: One row per run of a designed experiment, factors coded -1 and +1.
         factorial_effects: One row per effect of each experiment, including the ones set to zero.
+        reference_studies: One row per reading taken on a calibrated master.
+        reference_designs: One row per gage, with the bias actually built into it.
     """
 
     gage_studies: pd.DataFrame
@@ -37,6 +40,8 @@ class Dataset:
     comparison_designs: pd.DataFrame
     factorial_runs: pd.DataFrame
     factorial_effects: pd.DataFrame
+    reference_studies: pd.DataFrame
+    reference_designs: pd.DataFrame
 
 
 def generate_dataset(seed: int = SEED) -> Dataset:
@@ -65,4 +70,7 @@ def generate_dataset(seed: int = SEED) -> Dataset:
         # Appended after the comparisons, so waves 1 to 3 are untouched by wave 4.
         factorial_runs=factorial_runs(rng),
         factorial_effects=factorial_effects(),
+        # Appended after the experiment, so waves 1 to 4 are untouched by wave 5.
+        reference_studies=reference_studies(rng),
+        reference_designs=reference_designs(),
     )

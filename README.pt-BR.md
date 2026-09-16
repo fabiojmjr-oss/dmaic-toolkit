@@ -18,7 +18,7 @@ escritos. Ver [`DISCLAIMER.md`](DISCLAIMER.md).
 
 | Módulo | Fase | Decisão que habilita |
 | --- | --- | --- |
-| [`dmaic.measure`](src/dmaic/measure/README.md) | Measure | Este sistema de medição pode ser usado, o que o corrigiria, e ele sustenta a especificação? |
+| [`dmaic.measure`](src/dmaic/measure/README.md) | Measure | Este sistema de medição distingue as peças, ele está certo, e quanto custa estar errado? |
 | [`dmaic.analyze`](src/dmaic/analyze/README.md) | Analyze | De quanto dado este teste precisa, ele mantém a taxa de erro que alega, e o experimento consegue separar os efeitos sobre os quais está sendo perguntado? |
 
 O [`docs/ROADMAP.md`](docs/ROADMAP.md) lista as fases ainda não construídas, e explica por que a
@@ -174,6 +174,59 @@ geradores de quatro letras; as palavras deles multiplicam para `AE`, então dois
 compartilham uma coluna e o desenho é resolução II. O `fractional_factorial` recusa construí-lo em
 vez de devolver uma folha de corridas que parece correta.
 
+### Onda 5 — exatidão: o estudo aprovou e o gage está errado
+
+Os mesmos três gages, agora medidos contra cinco padrões calibrados cada, doze leituras por
+padrão. O estudo cruzado da onda 1 **não consegue ver nada disso**: toda figura AIAG é calculada a
+partir de diferenças entre leituras, então somar uma constante a todas não muda nada. Deslocar os
+três gages em 1000 unidades move a maior entre `grr`, `pct_study`, `pct_contribution`,
+`pct_tolerance` e `ndc` em no máximo **9,2e-12** — invariante, não pouco sensível.
+
+| Gage | Estudo cruzado | Viés no nominal | p | % da tolerância | Inclinação | Amplitude do viés | Amplitude % da tolerância |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| `BALANCA-01` | **aceitável**, 5,69% tol | **3,9076 g** | 0,0000 | **7,82** | 0,0011 | 0,0456 | 0,09 |
+| `PAQUIMETRO-02` | inaceitável, 63,58% tol | 0,0058 mm | 0,7113 | 0,58 | **−0,2205** | **0,1764 mm** | **17,64** |
+| `INSPECAO-03` | inaceitável, 62,55% tol | −0,0521 µm | 0,8721 | 0,13 | −0,0132 | 0,4231 | 1,06 |
+
+**Precisão e exatidão são independentes, e cada gage prova um canto diferente disso.** O
+`BALANCA-01` passou no estudo cruzado nos dois critérios e é o pior gage dos três: o viés dele é
+7,82% da tolerância contra os 5,69% que o estudo de GRR inteiro mediu, então o erro que ninguém
+procurou é maior que o erro que todos calcularam. O `PAQUIMETRO-02` **não tem viés nenhum no
+nominal** — p = 0,71 — e a verificação em um ponto que todo procedimento prescreve aprova um gage
+cujo desvio oscila 17,64% da tolerância ao longo da faixa, em direções opostas nos dois limites de
+especificação. O `INSPECAO-03` reprova na precisão e é exato, então "recalibra" não mudaria nada.
+
+**O viés se converte em peças.** Com desvio-padrão de processo de 8,0 g contra uma tolerância de
+50 g, 99,8222% da produção é conforme e o sigma do próprio gage é 0,4743:
+
+| Caso | Viés | Banda de guarda | Peças boas refugadas | Peças ruins expedidas |
+| --- | --- | --- | --- | --- |
+| Calibrado | 0,0000 | — | 161 ppm | 128 ppm |
+| **Como encontrado** | 3,9076 | — | **3.356 ppm** | **734 ppm** |
+| Como encontrado, com banda | 3,9076 | 3,5890 | **13.618 ppm** | 128 ppm |
+
+Refugo multiplicado por 20,8 e escapes por 5,7, num gage cujo estudo disse *aceitável*. E o
+paliativo é pior que a correção: apertar a aceitação em 3,5890 g traz os escapes exatamente de
+volta à taxa calibrada e paga com 13.618 ppm de peças conformes — **84,5 vezes** o refugo
+calibrado, 1,36% de tudo que é produzido. Uma calibração não custa nenhum dos dois números.
+
+**"O intervalo contém zero" não é regra de aceitação.** Mantenha o viés em 0,5 g — 1% da
+tolerância, imaterial — e varie apenas a precisão do gage, em 4.000 estudos simulados de doze
+leituras por linha:
+
+| Repetibilidade do gage | 6σ como % da tolerância | Viés ÷ sd | Chamado significativo |
+| --- | --- | --- | --- |
+| 0,20 | 2,40 | 2,5000 | **1,0000** |
+| 0,56 | 6,72 | 0,8929 | 0,7983 |
+| 1,50 | 18,00 | 0,3333 | 0,1893 |
+| 4,00 | 48,00 | 0,1250 | **0,0717** |
+
+Quanto melhor o gage, mais certamente ele é reprovado por um desvio que não importa — e quanto
+pior o gage, mais facilmente ele passa. O veredito acompanha a precisão do gage e não a
+consequência, a mesma anticorrelação com a utilidade que a onda 3 achou no pré-teste de
+normalidade, e é por isso que o `BiasStudy` reporta significância e materialidade como dois
+achados separados.
+
 ## Exemplos
 
 | Script | O que mostra |
@@ -182,13 +235,14 @@ vez de devolver uma folha de corridas que parece correta.
 | [`02_could_the_pilot_have_found_it.py`](examples/02_could_the_pilot_have_found_it.py) | Três pilotos, três resultados não-significativos, três efeitos reais |
 | [`03_which_test_and_can_it_be_trusted.py`](examples/03_which_test_and_can_it_be_trusted.py) | O fluxograma ensinado, medido contra sempre usar Welch. Ele perde |
 | [`04_the_generator_decides_the_conclusion.py`](examples/04_the_generator_decides_the_conclusion.py) | Um experimento, três desenhos, e um fator que não faz nada reportado como o segundo maior |
+| [`05_the_gage_passed_and_it_is_wrong.py`](examples/05_the_gage_passed_and_it_is_wrong.py) | O gage que o estudo aprovou, medido contra padrões, e quanto o viés dele custa em peças |
 
 ## Verificação
 
-**124 testes, 94% de cobertura de statements, separados por custo.** 106 deles rodam em cerca de
-quatro segundos e meio, e a sequência inteira do `make check` — linters, tipos, cobertura e tudo —
-em menos de sete. É isso que barra um push. Os 18 restantes re-derivam toda figura citada em um
-README e rodam todo script de exemplo, em cerca de dez segundos.
+**152 testes, 95% de cobertura de statements, separados por custo.** 130 deles rodam em cerca de
+sete segundos, e a sequência inteira do `make check` — linters, tipos, cobertura e tudo — em cerca
+de nove. É isso que barra um push. Os 22 restantes re-derivam toda figura citada em um README e
+rodam todo script de exemplo, em cerca de doze segundos.
 
 A ANOVA do gage é verificada contra um desenho 2×2×2 cujas somas de quadrados são inteiras (242,
 50, 2 e 8, fechando em 302), e não apenas contra a própria saída. Verificações independentes de
@@ -203,6 +257,16 @@ o resultado da t não-central é conferido contra um recálculo a partir das pri
 contra a própria saída do wrapper. Toda tabela do gerador também é fixada — adicionar a onda 2
 deixou o estudo de gage da onda 1 byte a byte idêntico, que é para isso que serve a disciplina de
 ordem de fluxo.
+
+A aritmética de exatidão é ancorada do mesmo jeito. A alegação de invariância é verificada como
+igualdade dentro do ponto flutuante e não dentro de uma tolerância, porque é álgebra e não
+medição. Uma reta ajustada a pontos que estão sobre uma reta tem de voltar exata, um gage perfeito
+tem de não classificar nada errado, um processo centrado tem de errar simetricamente nas duas
+direções de viés, e a banda de guarda tem de voltar por round-trip à taxa de escape para a qual
+foi resolvida. A simulação de significância é ancorada no próprio controle: com viés zero a
+estatística t não depende do desvio-padrão, então as quatro linhas têm de devolver a taxa de
+rejeição **idêntica** — quatro números apenas parecidos significariam que as linhas não são
+comparáveis.
 
 A aritmética de desenho é conferida contra um 2² cujos efeitos se leem direto de quatro números
 (respostas 10, 20, 30, 60 dão A = 30, B = 20, AB = 10), contra a ortogonalidade de toda coluna até
