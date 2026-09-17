@@ -10,6 +10,12 @@ decimal point on.
 *invariant* to: add a constant to every reading and every AIAG figure is unchanged exactly, so a
 gage reading 4 g heavy on every part passes as well as the same gage calibrated. Accuracy needs a
 value from outside the study, and the second module is about what a calibrated master buys.
+
+:mod:`~dmaic.measure.stability` asks how long either answer lasts. Both of the others are
+snapshots with no field for the date, and a drift has two consequences: it decides its own
+acceptance criterion as the days pass, and - because a crossed study's sessions fall on different
+days - it lands in whichever ANOVA term the *schedule* aligned it with. Give each operator their
+own day and the calendar is reported as the people's fault.
 """
 
 from .accuracy import (
@@ -39,10 +45,17 @@ from .msa import (
     anova,
     gage_rr,
 )
+from .stability import (
+    DRIFT_BUDGET_PCT,
+    StabilityStudy,
+    calibration_interval,
+    stability_study,
+)
 
 __all__ = [
     "ACCEPTABLE",
     "BIAS_MATERIAL_PCT",
+    "DRIFT_BUDGET_PCT",
     "ANOVA_COLUMNS",
     "INTERACTION_ALPHA",
     "LINEARITY_MATERIAL_PCT",
@@ -55,13 +68,16 @@ __all__ = [
     "BiasStudy",
     "GageStudy",
     "LinearityStudy",
+    "StabilityStudy",
     "Misclassification",
     "anova",
     "bias_significance_tradeoff",
     "bias_study",
+    "calibration_interval",
     "detectable_bias",
     "gage_rr",
     "guard_band",
     "linearity_study",
     "misclassification",
+    "stability_study",
 ]

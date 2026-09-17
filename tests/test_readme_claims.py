@@ -21,15 +21,25 @@ from dmaic.analyze import (
     full_factorial,
 )
 from dmaic.analyze.factorial import IDENTITY
+from dmaic.control import (
+    SamplingPlan,
+    inspect_lots,
+    matched_plan,
+    oc_curve,
+    percentage_plan,
+    plan_for,
+)
 from dmaic.measure import (
     bias_significance_tradeoff,
     bias_study,
+    calibration_interval,
     gage_rr,
     guard_band,
     linearity_study,
     misclassification,
+    stability_study,
 )
-from dmaic.synth import FACTORIALS, GAGES, Dataset
+from dmaic.synth import DRIFTS, FACTORIALS, GAGES, Dataset
 
 FACTORIAL = FACTORIALS[0]
 
@@ -552,7 +562,7 @@ def test_every_example_runs_and_prints_something() -> None:
 
     root = Path(__file__).resolve().parents[1]
     scripts = sorted((root / "examples").glob("*.py"))
-    assert len(scripts) == 5
+    assert len(scripts) == 7
 
     for script in scripts:
         captured, sys.stdout = sys.stdout, StringIO()
@@ -828,3 +838,149 @@ def test_the_significance_rule_table_reproduces() -> None:
         assert table.loc[sd, "bias_to_sd"] == pytest.approx(ratio, abs=5e-5)
         assert table.loc[sd, "flagged"] == pytest.approx(flagged, abs=5e-5)
         assert not bool(table.loc[sd, "material"])
+
+
+@pytest.mark.slow
+def test_the_calibration_interval_reproduces(full: Dataset) -> None:
+    """The stability table in the stability README and both root READMEs."""
+    design = full.drift_designs.set_index("gage").loc["BALANCA-01"]
+    tolerance = float(design["tolerance"])
+    study = stability_study(full.stability_checks, tolerance=tolerance, gage="BALANCA-01")
+
+    assert study.n == 52
+    assert study.last_day == 60
+    assert study.drift_per_day == pytest.approx(0.105428, abs=5e-7)
+    assert study.p_value < 1e-25
+    assert study.r_squared == pytest.approx(0.9209, abs=5e-5)
+    assert study.intercept == pytest.approx(-0.0932, abs=5e-5)
+    assert study.offset_at(60) == pytest.approx(6.2325, abs=5e-5)
+    assert study.pct_tolerance_at(60) == pytest.approx(12.47, abs=5e-3)
+    assert study.days_to() == pytest.approx(22.8, abs=5e-2)
+    assert calibration_interval(0.10, tolerance) == pytest.approx(25.0, abs=5e-2)
+
+    # The residual spread lands on the gage's own repeatability, which is the check that this is
+    # a drift rather than scatter given a slope.
+    assert study.residual_sd == pytest.approx(0.5894, abs=5e-5)
+    assert study.residual_sd == pytest.approx(float(design["repeat_sd"]), abs=0.05)
+
+    # And the number that links this wave to wave 5: the 4 g offset as days of drift.
+    assert 4.0 / study.drift_per_day == pytest.approx(37.9, abs=5e-2)
+    assert 4.0 / DRIFTS[0].drift_per_day == pytest.approx(40.0)
+
+
+@pytest.mark.slow
+def test_the_schedule_table_reproduces(full: Dataset) -> None:
+    """The three-schedule table, where only the day mapping differs."""
+    tolerance = float(full.drift_designs.set_index("gage").loc["BALANCA-01", "tolerance"])
+    studies = full.drift_studies
+    results = {
+        str(schedule): gage_rr(group, tolerance=tolerance, gage=str(schedule))
+        for schedule, group in studies.groupby("schedule", observed=True)
+    }
+    without = studies[studies["schedule"] == "sequential"].copy()
+    without["value"] = without["value"] - DRIFTS[0].drift_per_day * without["day"]
+    results["drift removed"] = gage_rr(without, tolerance=tolerance, gage="drift removed")
+
+    expected = {
+        # schedule: (EV, AV, GRR, % study, % tolerance, ndc, dominant, verdict)
+        "sequential": (0.6430, 1.0081, 1.1957, 12.68, 14.35, 11, "reproducibility", "conditional"),
+        "interleaved": (0.9161, 0.3829, 0.9929, 10.56, 11.92, 13, "repeatability", "conditional"),
+        "drift removed": (0.6430, 0.4010, 0.7578, 8.08, 9.09, 17, "repeatability", "acceptable"),
+    }
+    for schedule, row in expected.items():
+        ev, av, grr, study, tol, ndc, dominant, verdict = row
+        result = results[schedule]
+        assert result.ev == pytest.approx(ev, abs=5e-5), f"{schedule} EV"
+        assert result.av == pytest.approx(av, abs=5e-5), f"{schedule} AV"
+        assert result.grr == pytest.approx(grr, abs=5e-5), f"{schedule} GRR"
+        assert result.pct_study == pytest.approx(study, abs=5e-3), f"{schedule} % study"
+        assert result.pct_tolerance == pytest.approx(tol, abs=5e-3), f"{schedule} % tolerance"
+        assert result.ndc == ndc, f"{schedule} ndc"
+        assert result.dominant_source == dominant, f"{schedule} dominant"
+        assert result.verdict() == verdict, f"{schedule} verdict"
+
+    # The two multiples quoted in the prose.
+    truth = results["drift removed"]
+    assert results["sequential"].av / truth.av == pytest.approx(2.51, abs=5e-3)
+    assert results["interleaved"].ev / truth.ev == pytest.approx(1.42, abs=5e-3)
+
+
+@pytest.mark.slow
+def test_the_percentage_rule_table_reproduces() -> None:
+    """The lot-size table, and the constancy a fixed sample has instead."""
+    expected = {
+        # lot size: (10% n, accepts good, accepts excursions, n=80 good, n=80 excursions)
+        100: (10, 1.000000, 0.651631, 1.000000, 0.001236),
+        500: (50, 0.809820, 0.116411, 0.705331, 0.028394),
+        1000: (100, 0.589832, 0.013520, 0.658507, 0.033206),
+        5000: (500, 0.071311, 0.0, 0.667502, 0.037165),
+        20000: (2000, 0.000026, 0.0, 0.669115, 0.037917),
+    }
+    for lot_size, row in expected.items():
+        n, good, bad, fixed_good, fixed_bad = row
+        share = percentage_plan(lot_size)
+        fixed = SamplingPlan(80, 0, lot_size)
+        assert share.n == n
+        assert share.accept_probability(0.005) == pytest.approx(good, abs=5e-7)
+        assert share.accept_probability(0.040) == pytest.approx(bad, abs=5e-7)
+        assert fixed.accept_probability(0.005) == pytest.approx(fixed_good, abs=5e-7)
+        assert fixed.accept_probability(0.040) == pytest.approx(fixed_bad, abs=5e-7)
+
+
+@pytest.mark.slow
+def test_the_published_plan_curve_reproduces() -> None:
+    """The operating characteristic table for n=125 c=3, and the c=0 comparison under it."""
+    published = SamplingPlan(125, 3, 1000)
+    expected = {
+        0.005: (0.9989, 0.00437),
+        0.010: (0.9732, 0.00852),
+        0.020: (0.7668, 0.01342),
+        0.030: (0.4713, 0.01237),
+        0.040: (0.2408, 0.00843),
+        0.050: (0.1077, 0.00471),
+    }
+    curve = oc_curve(published, tuple(expected)).set_index("fraction_defective")
+    for fraction, (accepted, outgoing) in expected.items():
+        assert curve.loc[fraction, "accept_probability"] == pytest.approx(accepted, abs=5e-5)
+        assert curve.loc[fraction, "average_outgoing_quality"] == pytest.approx(outgoing, abs=5e-6)
+    assert published.producer_risk(0.01) == pytest.approx(0.027, abs=5e-4)
+
+    matched = matched_plan(published, 0, 0.01)
+    assert matched.n == 3
+    assert matched.producer_risk(0.01) == pytest.approx(0.030, abs=5e-4)
+    assert matched.accept_probability(0.03) == pytest.approx(0.913, abs=5e-4)
+    assert matched.accept_probability(0.04) == pytest.approx(0.885, abs=5e-4)
+
+    same_sample = SamplingPlan(published.n, 0, published.lot_size)
+    assert same_sample.producer_risk(0.01) == pytest.approx(0.739, abs=5e-4)
+    assert same_sample.accept_probability(0.03) == pytest.approx(0.017, abs=5e-4)
+
+    designed = plan_for(0.01, 0.04, lot_size=1000)
+    assert (designed.n, designed.c) == (189, 4)
+    assert designed.sampled_share == pytest.approx(0.189, abs=5e-4)
+
+
+@pytest.mark.slow
+def test_what_each_plan_bought_reproduces(full: Dataset) -> None:
+    """The inspection table, on the seed it is published under."""
+    lots = full.inspection_lots
+    assert len(lots) == 200
+    assert int((lots["state"] == "excursion").sum()) == 12
+    assert int(lots["defectives"].sum()) == 1478
+
+    published = SamplingPlan(125, 3, 1000)
+    plans = {
+        "percentage": (percentage_plan(1000), 20000, 12, 70, 543),
+        "published": (published, 25000, 9, 0, 1098),
+        "same sample c=0": (SamplingPlan(125, 0, 1000), 25000, 12, 86, 474),
+        "matched c=0": (matched_plan(published, 0, 0.01), 600, 2, 4, 1383),
+        "designed": (plan_for(0.01, 0.04, lot_size=1000), 37800, 10, 1, 1066),
+    }
+    for label, (plan, inspected, caught, rejected_good, shipped) in plans.items():
+        decided = inspect_lots(plan, lots, seed=6)
+        bad = decided[decided["state"] == "excursion"]
+        good = decided[decided["state"] == "in control"]
+        assert plan.n * len(decided) == inspected, f"{label} units inspected"
+        assert int((~bad["accepted"]).sum()) == caught, f"{label} excursions caught"
+        assert int((~good["accepted"]).sum()) == rejected_good, f"{label} good lots rejected"
+        assert int(decided.loc[decided["accepted"], "defectives"].sum()) == shipped, label

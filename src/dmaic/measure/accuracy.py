@@ -37,6 +37,7 @@ import numpy as np
 import pandas as pd
 from scipy import integrate, optimize, stats
 
+from .._limits import slope_p_value
 from ..analyze.power import DEFAULT_ALPHA, DEFAULT_POWER, power_paired
 
 #: A bias larger than this share of the tolerance is material whatever its p-value. Like the
@@ -251,15 +252,14 @@ class LinearityStudy:
     def p_value(self) -> float:
         """Two-sided p-value for a zero slope.
 
-        A standard error of zero means the readings lie on a line exactly, so the slope is known
-        rather than estimated. Returning ``nan`` there - as the first version of this did - made
-        ``significant`` false and produced the verdict "no linearity error detected" next to a
-        slope of 0.5, which is the same kind of contradiction between a number and its label that
-        this module exists to point at.
+        A standard error of zero or ``nan`` means the readings lie on a line exactly, so the slope
+        is known rather than estimated. Returning ``nan`` there made ``significant`` false and
+        produced the verdict "no linearity error detected" next to a slope of 0.5, which is the
+        same contradiction between a number and its label that this module exists to point at. The
+        first fix only covered the zero and ``scipy`` returns ``nan`` for a constant response, so
+        the limit now lives in :func:`dmaic._limits.slope_p_value` where both modules take it.
         """
-        if self.slope_stderr == 0.0:
-            return 0.0 if self.slope != 0.0 else 1.0
-        return float(2.0 * stats.t.sf(abs(self.slope / self.slope_stderr), self.n - 2))
+        return slope_p_value(self.slope, self.slope_stderr, self.n - 2)
 
     @property
     def significant(self) -> bool:

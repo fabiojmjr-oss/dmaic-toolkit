@@ -149,11 +149,20 @@ def test_a_line_fitted_to_points_on_a_line_comes_back_exact() -> None:
 
 
 def test_a_gage_with_one_constant_offset_has_no_linearity_error() -> None:
+    """A constant offset makes the response constant, so scipy returns nan for the slope error.
+
+    The first fix here only handled a standard error of exactly zero, which is what a perfect
+    *line* gives; a perfectly *flat* line gives nan, and the p-value came back nan with it. This
+    test asserts the p-value rather than only the verdict, which is how the second instance stayed
+    hidden after the first was fixed.
+    """
     reference = np.repeat([10.0, 20.0, 30.0], 4)
     frame = pd.DataFrame({"reference": reference, "value": reference + 3.0})
     study = linearity_study(frame, tolerance=100.0)
     assert study.slope == pytest.approx(0.0)
     assert study.span == pytest.approx(0.0)
+    assert study.p_value == 1.0
+    assert not study.significant
     assert not study.material
     assert not np.isnan(study.pct_tolerance_span)
     assert "no linearity error" in study.verdict()
