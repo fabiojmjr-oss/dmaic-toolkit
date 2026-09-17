@@ -29,6 +29,14 @@ from dmaic.control import (
     percentage_plan,
     plan_for,
 )
+from dmaic.define import (
+    Charter,
+    Ctq,
+    entitlement,
+    entitlement_inflation,
+    gap_by_window,
+    overattribution,
+)
 from dmaic.improve import (
     BenefitCase,
     before_after,
@@ -568,7 +576,7 @@ def test_every_example_runs_and_prints_something() -> None:
 
     root = Path(__file__).resolve().parents[1]
     scripts = sorted((root / "examples").glob("*.py"))
-    assert len(scripts) == 8
+    assert len(scripts) == 9
 
     for script in scripts:
         captured, sys.stdout = sys.stdout, StringIO()
@@ -1097,3 +1105,139 @@ def test_the_money_table_reproduces(full: Dataset) -> None:
     assert attribution == pytest.approx(2.01, abs=5e-3)
     assert conversion == pytest.approx(2.86, abs=5e-3)
     assert attribution * conversion == pytest.approx(booked / real, abs=1e-9)
+
+
+@pytest.mark.slow
+def test_the_gap_by_window_table_reproduces(full: Dataset) -> None:
+    """The four-baseline table in the define README and both root READMEs."""
+    profile = PANELS[0]
+    table = gap_by_window(
+        full.site_performance, last_period=profile.split, windows=(1, 3, 6, 12)
+    ).set_index("window")
+    expected = {
+        # window: (mean, best, worst, gap to best, worst to best)
+        1: (94.7895, 75.9952, 120.3974, 18.7943, 44.4022),
+        3: (95.7523, 81.8822, 112.2490, 13.8701, 30.3668),
+        6: (96.3559, 80.8312, 111.9404, 15.5247, 31.1092),
+        12: (96.9307, 79.4887, 109.9823, 17.4420, 30.4936),
+    }
+    for window, row in expected.items():
+        mean, best, worst, gap, spread = row
+        assert table.loc[window, "mean"] == pytest.approx(mean, abs=5e-5)
+        assert table.loc[window, "best"] == pytest.approx(best, abs=5e-5)
+        assert table.loc[window, "worst"] == pytest.approx(worst, abs=5e-5)
+        assert table.loc[window, "gap_to_best"] == pytest.approx(gap, abs=5e-5)
+        assert table.loc[window, "worst_to_best"] == pytest.approx(spread, abs=5e-5)
+
+    # The published reading: 46% more apparent spread between sites, from the window alone.
+    ratio = table.loc[1, "worst_to_best"] / table.loc[12, "worst_to_best"]
+    assert ratio - 1.0 == pytest.approx(0.46, abs=5e-3)
+
+
+@pytest.mark.slow
+def test_the_entitlement_inflation_table_reproduces() -> None:
+    """The simulation, and the bracket that is the module's main claim."""
+    profile = PANELS[0]
+    table = entitlement_inflation(
+        (1, 3, 6, 12, 24),
+        units=profile.sites,
+        site_sd=profile.site_sd,
+        noise_sd=profile.noise,
+    ).set_index("window")
+    expected = {
+        # window: (charter gap, true gap, shrunk gap, inflation)
+        1: (18.6274, 14.8561, 11.9215, 3.7713),
+        3: (16.2542, 14.9069, 13.6878, 1.3474),
+        6: (15.6095, 14.9185, 14.2716, 0.6910),
+        12: (15.2783, 14.9599, 14.5942, 0.3184),
+        24: (15.2348, 15.0210, 14.8859, 0.2137),
+    }
+    for window, row in expected.items():
+        charter_gap, true_gap, shrunk_gap, inflation = row
+        assert table.loc[window, "charter_gap"] == pytest.approx(charter_gap, abs=5e-5)
+        assert table.loc[window, "true_gap"] == pytest.approx(true_gap, abs=5e-5)
+        assert table.loc[window, "shrunk_gap"] == pytest.approx(shrunk_gap, abs=5e-5)
+        assert table.loc[window, "inflation"] == pytest.approx(inflation, abs=5e-5)
+
+    # The published reading of the first row, and the bracket in every row.
+    assert table.loc[1, "inflation"] / table.loc[1, "true_gap"] == pytest.approx(0.25, abs=5e-3)
+    assert bool((table["shrunk_gap"] < table["true_gap"]).all())
+    assert bool((table["true_gap"] < table["charter_gap"]).all())
+
+
+@pytest.mark.slow
+def test_the_charter_this_panel_would_produce_reproduces(full: Dataset) -> None:
+    """The charter table, including the benefit the Improve phase's class computes."""
+    profile = PANELS[0]
+    panel = full.site_performance
+    recent = panel[(panel["period"] > 0) & (panel["period"] <= profile.split)]
+    averages = recent.groupby("site", observed=True)["value"].mean()
+    reference = entitlement(averages, noise_sd=profile.noise, window=profile.split)
+
+    assert reference.grand_mean == pytest.approx(96.9307, abs=5e-5)
+    assert reference.observed_best == pytest.approx(79.4887, abs=5e-5)
+    assert reference.charter_gap == pytest.approx(17.4420, abs=5e-5)
+    assert reference.shrunk_gap == pytest.approx(16.6681, abs=5e-5)
+    assert reference.reliability == pytest.approx(0.96, abs=5e-3)
+
+    charter = Charter(
+        measurand=profile.stream,
+        unit=profile.unit,
+        baseline=reference.grand_mean,
+        baseline_window=profile.split,
+        target=reference.observed_best,
+        target_basis="entitlement",
+        volume_per_period=profile.units_per_period * profile.sites,
+        periods=profile.periods - profile.split,
+        variable_share=profile.variable_share,
+        project_cost=profile.project_cost,
+    )
+    assert charter.gap == pytest.approx(-17.4420, abs=5e-5)
+    assert charter.gap_pct == pytest.approx(18.0, abs=5e-2)
+    case = charter.benefit_case()
+    assert case.gross == pytest.approx(50233061, abs=1.0)
+    assert case.cash == pytest.approx(17581571, abs=1.0)
+    assert case.capacity == pytest.approx(32651489, abs=1.0)
+    assert case.net == pytest.approx(17331571, abs=1.0)
+
+
+@pytest.mark.slow
+def test_the_ctq_tree_over_attributes_by_the_published_multiple(full: Dataset) -> None:
+    """The tree in example 09, against the gap the panel produces."""
+    tree = Ctq(
+        name="gap por pedido",
+        children=(
+            Ctq(
+                name="separacao",
+                children=(
+                    Ctq("caminhamento", measurand="metros por linha", contribution=5.2),
+                    Ctq("conferencia", measurand="segundos por linha", contribution=3.1),
+                ),
+            ),
+            Ctq(
+                name="embalagem",
+                children=(
+                    Ctq("material", measurand="BRL por caixa", contribution=2.4),
+                    Ctq("retrabalho", contribution=1.8),
+                ),
+            ),
+            Ctq(
+                name="transporte",
+                children=(
+                    Ctq("ocupacao", measurand="m3 por veiculo", contribution=4.5),
+                    Ctq("cultura de servico", contribution=2.6),
+                ),
+            ),
+        ),
+    )
+    profile = PANELS[0]
+    panel = full.site_performance
+    recent = panel[panel["period"] <= profile.split]
+    averages = recent.groupby("site", observed=True)["value"].mean()
+    gap = entitlement(averages, noise_sd=profile.noise, window=profile.split).charter_gap
+
+    assert tree.claimed == pytest.approx(19.60)
+    assert overattribution(tree, gap) == pytest.approx(1.12, abs=5e-3)
+    assert tree.unmeasurable_claim == pytest.approx(4.40)
+    assert tree.unmeasurable_claim / tree.claimed == pytest.approx(0.224, abs=5e-4)
+    assert not tree.measurable
