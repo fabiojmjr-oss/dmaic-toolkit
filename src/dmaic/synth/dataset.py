@@ -13,6 +13,7 @@ from .drift import drift_designs, drift_studies, stability_checks
 from .factorial import factorial_effects, factorial_runs
 from .gage import gage_studies, specifications
 from .lots import inspection_lots, lot_designs
+from .panel import improvement_designs, site_performance
 from .reference import reference_designs, reference_studies
 from .trial import improvement_trials, trial_designs
 
@@ -37,6 +38,8 @@ class Dataset:
         drift_designs: One row per drifting gage, with the rate built into it.
         inspection_lots: One row per lot arriving for acceptance inspection.
         lot_designs: One row per stream, with the two states' true defect rates.
+        site_performance: One row per site and period of an improvement panel.
+        improvement_designs: One row per panel, with the effect and the trend built into it.
     """
 
     gage_studies: pd.DataFrame
@@ -54,6 +57,8 @@ class Dataset:
     drift_designs: pd.DataFrame
     inspection_lots: pd.DataFrame
     lot_designs: pd.DataFrame
+    site_performance: pd.DataFrame
+    improvement_designs: pd.DataFrame
 
 
 def generate_dataset(seed: int = SEED) -> Dataset:
@@ -91,4 +96,7 @@ def generate_dataset(seed: int = SEED) -> Dataset:
         drift_designs=drift_designs(),
         inspection_lots=inspection_lots(rng),
         lot_designs=lot_designs(),
+        # Appended after the lots, so waves 1 to 6 are untouched by wave 7.
+        site_performance=site_performance(rng),
+        improvement_designs=improvement_designs(),
     )

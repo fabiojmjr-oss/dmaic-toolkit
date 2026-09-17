@@ -20,6 +20,7 @@ escritos. Ver [`DISCLAIMER.md`](DISCLAIMER.md).
 | --- | --- | --- |
 | [`dmaic.measure`](src/dmaic/measure/README.md) | Measure | Este sistema de medição distingue as peças, ele está certo, quanto tempo isso dura, e quanto custa estar errado? |
 | [`dmaic.analyze`](src/dmaic/analyze/README.md) | Analyze | De quanto dado este teste precisa, ele mantém a taxa de erro que alega, e o experimento consegue separar os efeitos sobre os quais está sendo perguntado? |
+| [`dmaic.improve`](src/dmaic/improve/README.md) | Improve | Quanto desta melhoria é do projeto, alguma parte foi artefato de como os sites foram escolhidos, e quanto da economia é caixa? |
 | [`dmaic.control`](src/dmaic/control/README.md) | Control | O que este plano de amostragem de fato pega, o que ele deixa passar, e o que a inspeção comprou? |
 
 O [`docs/ROADMAP.md`](docs/ROADMAP.md) lista as fases ainda não construídas, e explica por que a
@@ -297,6 +298,55 @@ O plano publicado inspeciona 25.000 unidades e expede três quartos dos defeitos
 todas as excursões faz isso pondo em quarentena mais de um terço da produção boa — não é
 discriminante, é duro. Amostragem separa lotes; não muda o que tem dentro deles.
 
+### Onda 7 — a economia foi sua, e é caixa?
+
+Vinte sites ao longo de vinte e quatro meses, cinco melhorados a partir do mês treze. O gerador
+declara o efeito que aplicou, **−5,00 BRL por pedido**, e a tendência que já estava correndo,
+**−0,40 por período** — que move o mensurando −4,80 nos doze períodos após o corte, em sites
+tratados e não tratados igualmente.
+
+| Base | Estimativa | Sites de comparação | Atribuível | Vezes a verdade |
+| --- | --- | --- | --- | --- |
+| Antes e depois | **−10,0637** | 0 | não | **2,01×** |
+| Diferença em diferenças | −4,2241 | 15 | sim | 0,84× |
+| A verdade | −5,0000 | — | — | 1,00× |
+
+**O projeto reporta o dobro do que entregou, e o excedente é o calendário.** Um número
+antes-e-depois não é impreciso sobre o benefício; é sistematicamente errado numa direção, e a
+direção é sempre lisonjeira. Um grupo de comparação resolve sem modelar nada: a diferença em
+diferenças fica em −4,2241 com intervalo de **−5,2545 a −3,1938**, que contém a verdade. Está errada
+por azar e não por construção, e o intervalo diz por quanto.
+
+**E o que um projeto mostra quando não faz nada.** Sem efeito e sem tendência em nenhuma linha
+abaixo — a única coisa acontecendo é quais sites entraram no charter, e sobre quantos períodos de
+histórico essa escolha foi feita:
+
+| Períodos de histórico | Piores desempenhos selecionados | Selecionados ao acaso |
+| --- | --- | --- |
+| 1 | **−4,3401** | −0,0524 |
+| 3 | −1,6997 | −0,0262 |
+| 12 | −0,4562 | +0,0005 |
+| 24 | −0,2294 | −0,0022 |
+
+Abrir projeto sobre um único mês ruim fabrica −4,34 do nada: **87% de uma melhoria real de cinco
+unidades, em sites onde nada foi feito.** Seleção aleatória devolve zero em toda linha, e essa é a
+verificação de controle — o artefato está na regra de seleção, não na aritmética. E o remédio é de
+graça: um ano de histórico leva isso a −0,46.
+
+**Então o dinheiro.** 60.000 pedidos por período nos sites tratados, doze períodos, 35% do custo
+unitário evitável como caixa, um projeto que custou 250.000:
+
+| Base | Efeito | Bruto | Caixa | Líquido | Payback |
+| --- | --- | --- | --- | --- | --- |
+| Contabilizado no antes e depois | −10,06 | **7.245.895** | 2.536.063 | 2.286.063 | 1,18 |
+| Diferença em diferenças | −4,22 | 3.041.368 | 1.064.479 | 814.479 | 2,82 |
+| A verdade | −5,00 | 3.600.000 | **1.260.000** | 1.010.000 | 2,38 |
+
+**O charter contabiliza 7.245.895 e o projeto produziu 1.260.000 de caixa — 5,75×.** Esse
+descasamento é um produto, não um mistério: **2,01× de atribuição e 2,86× da parcela que é caixa e
+não capacidade**, e 2,01 × 2,86 = 5,75 exatamente. Dois fatores, nenhum escrito em lugar algum da
+documentação do projeto. O `BenefitCase` reporta bruto e caixa separados e se recusa a somá-los.
+
 ## Exemplos
 
 | Script | O que mostra |
@@ -308,12 +358,13 @@ discriminante, é duro. Amostragem separa lotes; não muda o que tem dentro dele
 | [`05_the_gage_passed_and_it_is_wrong.py`](examples/05_the_gage_passed_and_it_is_wrong.py) | O gage que o estudo aprovou, medido contra padrões, e quanto o viés dele custa em peças |
 | [`06_the_study_took_two_weeks.py`](examples/06_the_study_took_two_weeks.py) | Um gage derivando: o intervalo de calibração, e a agenda que culpa os operadores pelo calendário |
 | [`07_what_the_sampling_plan_guarantees.py`](examples/07_what_the_sampling_plan_guarantees.py) | Cinco planos de amostragem nos mesmos duzentos lotes, e o que cada um de fato comprou |
+| [`08_was_the_saving_yours.py`](examples/08_was_the_saving_yours.py) | Um projeto que entregou 5,00 por pedido e reportou 10,06, e o dinheiro que vem disso |
 
 ## Verificação
 
-**189 testes, 96% de cobertura de statements, separados por custo.** 162 deles rodam em cerca de
-dez segundos, e a sequência inteira do `make check` — linters, tipos, cobertura e tudo — em cerca
-de onze. É isso que barra um push. Os 27 restantes re-derivam toda figura citada em um README e
+**211 testes, 96% de cobertura de statements, separados por custo.** 181 deles rodam em cerca de
+oito segundos e meio, e a sequência inteira do `make check` — linters, tipos, cobertura e tudo — em
+menos de dez. É isso que barra um push. Os 30 restantes re-derivam toda figura citada em um README e
 rodam todo script de exemplo, em cerca de doze segundos.
 
 A ANOVA do gage é verificada contra um desenho 2×2×2 cujas somas de quadrados são inteiras (242,
