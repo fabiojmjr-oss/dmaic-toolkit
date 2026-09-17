@@ -399,13 +399,52 @@ two-by-two is the wrong shape. An effect that grows or decays after the change r
 And the parallel-trends check itself, which is computable from the same panel and is the assumption
 the whole estimator rests on.
 
-## Wave 8 — Define: artifacts that carry arithmetic
+## Wave 8 — Define: the charter, as arithmetic
 
-*Not built.* A charter whose benefit case is computable rather than formatted — which wave 7's
-`BenefitCase` is half of, and the other half is what gets into it before any data exists. CTQ trees
-with measurable leaves, and a problem statement that names the measurand, the baseline window and
-the comparison group in advance, because all three are decisions and all three are usually made
-after the result is known.
+**A computable charter** *(complete — [`dmaic.define`](../src/dmaic/define/README.md))*. The problem
+statement's baseline window as the free parameter it is, the entitlement read twice, a CTQ tree whose
+arithmetic is checked against the gap it decomposes, and a benefit case built by the same class the
+Improve phase audits it with.
+
+The wave is the mirror image of wave 7. A project is chartered *from* a recent baseline and *towards*
+the best site's observed performance. The worst performer of a short window was partly unlucky and
+comes back up on its own; the best performer of the same window was partly lucky and goes back down.
+A charter therefore takes the most inflated estimate available at **both** ends of its gap, and the
+two errors add rather than cancel.
+
+- **The same twelve months support a gap of 18.79 or 13.87**, depending on a baseline window that no
+  charter template has a field for. And the spread between sites — the figure a harmonisation
+  programme is justified with — reads **46% larger on one period than on twelve**.
+- **A quarter of a one-period entitlement gap does not exist.** 18.63 claimed against 14.86 there,
+  because the minimum of twenty noisy averages sits below the minimum of twenty true levels always,
+  and by a predictable amount. The arithmetic is right; the estimator is the problem.
+- **Shrinking the best site toward the average errs the other way**, at 11.92, and that is the useful
+  result rather than a failed fix: the truth sits between the two in every window tried. Quote one
+  and you have chosen a direction; quote both and you have stated a range, which narrows from
+  11.92–18.63 on one period to 14.89–15.23 on twenty-four.
+- **The CTQ tree over-attributes by 1.12×** — the same saving under more than one name — and **22% of
+  its claim sits under leaves that name no measurand**, which is the share nobody will be able to
+  verify after the project closes. It will be claimed anyway, because by then the only figure
+  available is the total.
+- **The promise and the audit share one class.** `Charter.benefit_case()` returns wave 7's
+  `BenefitCase`, so a charter cannot compute its benefit differently from the way it will be
+  verified.
+
+**A defect of my own, and an embarrassing one.** `entitlement` shipped a ternary whose two branches
+were identical — leftover drafting, selecting the minimum either way — which meant the function
+silently assumed lower is better and would have named the *worst* site as the entitlement for a
+yield, an on-time rate or any measurand that runs upwards. It is now a stated parameter with a test
+on both directions, and the same parameter was missing from `gap_by_window`.
+
+**And a lesson about patching rather than reading.** The fix above failed to apply the first time
+because a formatter had already rewrapped the line I was matching on, and the failed patch was in a
+script whose later steps ran anyway. The measurement that followed looked correct because it used the
+defaults. Verifying the patch rather than the output is what caught it.
+
+**Still to build in this phase:** a parallel-trends check on the baseline window, which is computable
+from the same panel and is the assumption wave 7's estimator rests on. Disjointness in a CTQ tree,
+which `overattribution` only catches when the double counting pushes the total past the gap. And the
+stakeholder side of Define, which is not arithmetic and is not pretended to be here.
 
 ## Wave 9 — Control: the rest of the plan
 

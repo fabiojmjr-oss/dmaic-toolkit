@@ -18,6 +18,7 @@ escritos. Ver [`DISCLAIMER.md`](DISCLAIMER.md).
 
 | Módulo | Fase | Decisão que habilita |
 | --- | --- | --- |
+| [`dmaic.define`](src/dmaic/define/README.md) | Define | Este gap é real, qual janela de histórico o produziu, e a decomposição dele fecha? |
 | [`dmaic.measure`](src/dmaic/measure/README.md) | Measure | Este sistema de medição distingue as peças, ele está certo, quanto tempo isso dura, e quanto custa estar errado? |
 | [`dmaic.analyze`](src/dmaic/analyze/README.md) | Analyze | De quanto dado este teste precisa, ele mantém a taxa de erro que alega, e o experimento consegue separar os efeitos sobre os quais está sendo perguntado? |
 | [`dmaic.improve`](src/dmaic/improve/README.md) | Improve | Quanto desta melhoria é do projeto, alguma parte foi artefato de como os sites foram escolhidos, e quanto da economia é caixa? |
@@ -347,6 +348,47 @@ descasamento é um produto, não um mistério: **2,01× de atribuição e 2,86×
 não capacidade**, e 2,01 × 2,86 = 5,75 exatamente. Dois fatores, nenhum escrito em lugar algum da
 documentação do projeto. O `BenefitCase` reporta bruto e caixa separados e se recusa a somá-los.
 
+### Onda 8 — o charter, como aritmética
+
+A imagem espelhada da onda 7. Um projeto é aberto **a partir de** um baseline recente e **em direção
+a** o desempenho observado do melhor site — e o pior desempenho de uma janela curta estava em parte
+com azar e volta a subir, enquanto o melhor estava em parte com sorte e volta a descer. **Um charter
+toma a estimativa mais inflada disponível nas duas pontas do gap, e os dois erros se somam.**
+
+Os mesmos doze meses, lidos como quatro baselines:
+
+| Janela | Média | Melhor | Pior | Gap ao melhor | Pior ao melhor |
+| --- | --- | --- | --- | --- | --- |
+| 1 | 94,7895 | **75,9952** | **120,3974** | **18,7943** | **44,4022** |
+| 3 | 95,7523 | 81,8822 | 112,2490 | 13,8701 | 30,3668 |
+| 12 | 96,9307 | 79,4887 | 109,9823 | 17,4420 | 30,4936 |
+
+**Um charter pode citar um gap de 18,79 ou de 13,87 do mesmo dado**, dependendo de uma janela para a
+qual nenhum template tem campo. E a dispersão entre sites — a cifra que justifica um programa de
+harmonização — lê **46% maior em um período do que em doze**.
+
+**Quanto de um gap de entitlement é o melhor site com um bom período**, simulado porque o nível real
+de cada site é exatamente o que um charter não tem:
+
+| Janela de histórico | Gap do charter | O gap que existe | Gap encolhido | Inflação |
+| --- | --- | --- | --- | --- |
+| 1 | **18,6274** | 14,8561 | 11,9215 | **3,7713** |
+| 3 | 16,2542 | 14,9069 | 13,6878 | 1,3474 |
+| 12 | 15,2783 | 14,9599 | 14,5942 | 0,3184 |
+| 24 | 15,2348 | 15,0210 | 14,8859 | 0,2137 |
+
+**Em um histórico de um período o charter alega 18,63 onde existem 14,86: 25% do gap não existe** —
+não porque alguém mediu mal, mas porque o mínimo de vinte médias ruidosas fica abaixo do mínimo de
+vinte níveis reais, sempre, e por uma quantidade previsível. Encolher o melhor site em direção à
+média erra para o outro lado, e **a verdade fica entre as duas em toda janela testada**: cite uma e
+você escolheu uma direção, cite as duas e você declarou uma faixa.
+
+**E a árvore que explica o gap.** Sete folhas alegando 19,60 contra um gap de 17,44 — **1,12×**,
+então a mesma economia está sob mais de um nome — e **22% da alegação está sob folhas que não nomeiam
+mensurando**, que é a parcela impossível de verificar depois que o projeto encerra. O benefício do
+charter é calculado pelo mesmo `BenefitCase` com que a fase Improve o audita, então a promessa e a
+verificação não podem discordar de aritmética — só de realidade.
+
 ## Exemplos
 
 | Script | O que mostra |
@@ -359,13 +401,14 @@ documentação do projeto. O `BenefitCase` reporta bruto e caixa separados e se 
 | [`06_the_study_took_two_weeks.py`](examples/06_the_study_took_two_weeks.py) | Um gage derivando: o intervalo de calibração, e a agenda que culpa os operadores pelo calendário |
 | [`07_what_the_sampling_plan_guarantees.py`](examples/07_what_the_sampling_plan_guarantees.py) | Cinco planos de amostragem nos mesmos duzentos lotes, e o que cada um de fato comprou |
 | [`08_was_the_saving_yours.py`](examples/08_was_the_saving_yours.py) | Um projeto que entregou 5,00 por pedido e reportou 10,06, e o dinheiro que vem disso |
+| [`09_the_charter_that_computes.py`](examples/09_the_charter_that_computes.py) | Um charter medido da ponta errada do baseline, em direção à ponta errada da meta |
 
 ## Verificação
 
-**211 testes, 96% de cobertura de statements, separados por custo.** 181 deles rodam em cerca de
-oito segundos e meio, e a sequência inteira do `make check` — linters, tipos, cobertura e tudo — em
-menos de dez. É isso que barra um push. Os 30 restantes re-derivam toda figura citada em um README e
-rodam todo script de exemplo, em cerca de doze segundos.
+**233 testes, 96% de cobertura de statements, separados por custo.** 199 deles rodam em cerca de
+nove segundos, e a sequência inteira do `make check` — linters, tipos, cobertura e tudo — em cerca de
+onze. É isso que barra um push. Os 34 restantes re-derivam toda figura citada em um README e rodam
+todo script de exemplo, em cerca de doze segundos.
 
 A ANOVA do gage é verificada contra um desenho 2×2×2 cujas somas de quadrados são inteiras (242,
 50, 2 e 8, fechando em 302), e não apenas contra a própria saída. Verificações independentes de

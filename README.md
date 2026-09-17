@@ -17,6 +17,7 @@ table is produced by a seeded generator whose parameters are written down. See
 
 | Module | Phase | Decision it enables |
 | --- | --- | --- |
+| [`dmaic.define`](src/dmaic/define/README.md) | Define | Is this gap real, which baseline window produced it, and does the decomposition of it add up? |
 | [`dmaic.measure`](src/dmaic/measure/README.md) | Measure | Can this measurement system tell the parts apart, is it right, how long does that last, and what does being wrong cost? |
 | [`dmaic.analyze`](src/dmaic/analyze/README.md) | Analyze | How much data does this test need, does it hold the error rate it claims, and can the experiment separate the effects it is being asked about? |
 | [`dmaic.improve`](src/dmaic/improve/README.md) | Improve | How much of this improvement is the project's, was any of it an artefact of how the sites were chosen, and how much of the saving is cash? |
@@ -347,6 +348,47 @@ capacity**, and 2.01 × 2.86 = 5.75 exactly. Two factors, neither written down a
 project's documentation. `BenefitCase` reports gross and cash separately and declines to add them
 up.
 
+### Wave 8 — the charter, as arithmetic
+
+The mirror image of wave 7. A project is chartered **from** a recent baseline and **towards** the
+best site's observed performance — and the worst performer of a short window was partly unlucky and
+comes back up, while the best performer was partly lucky and goes back down. **A charter takes the
+most inflated estimate available at both ends of its gap, and the two errors add.**
+
+The same twelve months, read as four baselines:
+
+| Window | Mean | Best | Worst | Gap to best | Worst to best |
+| --- | --- | --- | --- | --- | --- |
+| 1 | 94.7895 | **75.9952** | **120.3974** | **18.7943** | **44.4022** |
+| 3 | 95.7523 | 81.8822 | 112.2490 | 13.8701 | 30.3668 |
+| 12 | 96.9307 | 79.4887 | 109.9823 | 17.4420 | 30.4936 |
+
+**A charter can quote a gap of 18.79 or 13.87 from the same data**, depending on a window no charter
+template has a field for. And the spread between sites — the figure that justifies a harmonisation
+programme — reads **46% larger on one period than on twelve**.
+
+**How much of an entitlement gap is the best site having a good run**, simulated because the true
+level of each site is exactly what a charter lacks:
+
+| Baseline window | Charter's gap | The gap that is there | Shrunk gap | Inflation |
+| --- | --- | --- | --- | --- |
+| 1 | **18.6274** | 14.8561 | 11.9215 | **3.7713** |
+| 3 | 16.2542 | 14.9069 | 13.6878 | 1.3474 |
+| 12 | 15.2783 | 14.9599 | 14.5942 | 0.3184 |
+| 24 | 15.2348 | 15.0210 | 14.8859 | 0.2137 |
+
+**On a one-period baseline the charter claims 18.63 where 14.86 is there: 25% of the gap does not
+exist** — not because anybody measured badly, but because the minimum of twenty noisy averages sits
+below the minimum of twenty true levels, always, and by a predictable amount. Shrinking the best
+site toward the average errs the other way, and **the truth sits between the two in every window
+tried**: quote one and you have chosen a direction, quote both and you have stated a range.
+
+**And the tree that explains the gap.** Seven leaves claiming 19.60 against a gap of 17.44 —
+**1.12×**, so the same saving is under more than one name — and **22% of the claim sits under leaves
+that name no measurand**, which is the share that cannot be verified after the project closes. The
+charter's benefit is computed by the same `BenefitCase` the Improve phase audits it with, so the
+promise and the verification cannot disagree about arithmetic — only about reality.
+
 ## Examples
 
 | Script | What it shows |
@@ -359,13 +401,14 @@ up.
 | [`06_the_study_took_two_weeks.py`](examples/06_the_study_took_two_weeks.py) | A drifting gage: the calibration interval, and the schedule that blames the operators for the calendar |
 | [`07_what_the_sampling_plan_guarantees.py`](examples/07_what_the_sampling_plan_guarantees.py) | Five sampling plans on the same two hundred lots, and what each one actually bought |
 | [`08_was_the_saving_yours.py`](examples/08_was_the_saving_yours.py) | A project that delivered 5.00 per order and reported 10.06, and the money that follows |
+| [`09_the_charter_that_computes.py`](examples/09_the_charter_that_computes.py) | A charter measured from the wrong end of its baseline, towards the wrong end of its target |
 
 ## Verification
 
-**211 tests, 96% statement coverage, split by cost.** 181 of them run in about eight and a half
-seconds, and the whole `make check` sequence — linters, type check, coverage and all — in under ten.
-That is what a push is gated on. The remaining 30 re-derive every figure quoted in a README and run
-every example script, in about twelve seconds.
+**233 tests, 96% statement coverage, split by cost.** 199 of them run in about nine seconds, and
+the whole `make check` sequence — linters, type check, coverage and all — in about eleven. That is
+what a push is gated on. The remaining 34 re-derive every figure quoted in a README and run every
+example script, in about twelve seconds.
 
 The gage ANOVA is verified against a 2×2×2 design whose sums of squares are integers (242, 50, 2
 and 8, adding to 302), not only against its own output. Independent property checks confirm that
