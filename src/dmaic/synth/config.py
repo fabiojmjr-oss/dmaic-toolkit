@@ -539,3 +539,76 @@ LOTS = (
         excursion_fraction=0.040,
     ),
 )
+
+
+@dataclass(frozen=True)
+class PanelProfile:
+    """Many sites measured over many periods, with a real improvement in some of them.
+
+    The table exists to make one question checkable: of the improvement a project would report,
+    how much is the project's? Three things move a before-and-after number and only one of them
+    is the project - the improvement itself, a trend that was already running, and the selection
+    that put these sites in the charter rather than others.
+
+    Attributes:
+        stream: Label for the measurand.
+        unit: Unit of measure.
+        sites: How many sites are measured.
+        periods: How many periods each site is measured for.
+        split: Last period before the improvement. Periods after it carry the effect in the
+            treated sites.
+        level: Mean performance across sites.
+        site_sd: Spread between sites, which is real and permanent.
+        trend: Change per period common to every site, treated or not. Negative is an improvement
+            that was already happening and that a before-and-after comparison will credit to
+            whoever happened to be running a project at the time.
+        noise: Period-to-period spread within a site.
+        true_effect: The effect applied to the treated sites after ``split``, signed.
+        treated: How many sites are treated. They are chosen at random rather than by
+            performance, which is what makes the true effect recoverable - selection by
+            performance is simulated separately, because mixing the two would leave no way to
+            say which error produced which part of the answer.
+        units_per_period: Transactions per site per period, for turning an effect into money.
+        variable_share: Share of a modelled unit saving that is avoidable cash within the year.
+            The rest is capacity: real, and not a number that appears in a bank account.
+        project_cost: One-off cost of running the project.
+    """
+
+    stream: str
+    unit: str
+    sites: int
+    periods: int
+    split: int
+    level: float
+    site_sd: float
+    trend: float
+    noise: float
+    true_effect: float
+    treated: int
+    units_per_period: float
+    variable_share: float
+    project_cost: float
+
+
+# One panel. The numbers are chosen so that the three contributions to a before-and-after
+# difference are of comparable size - the trend over the measured window is about as large as the
+# improvement itself - because that is the situation where the arithmetic decides the conclusion
+# and the rhetoric cannot.
+PANELS = (
+    PanelProfile(
+        stream="custo de processamento por pedido",
+        unit="BRL",
+        sites=20,
+        periods=24,
+        split=12,
+        level=100.0,
+        site_sd=8.0,
+        trend=-0.40,
+        noise=6.0,
+        true_effect=-5.00,
+        treated=5,
+        units_per_period=12000.0,
+        variable_share=0.35,
+        project_cost=250000.0,
+    ),
+)

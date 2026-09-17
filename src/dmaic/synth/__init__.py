@@ -11,6 +11,7 @@ from .config import (
     GAGES,
     LOTS,
     OPERATORS,
+    PANELS,
     PARTS,
     REFERENCES,
     REPLICATES,
@@ -22,6 +23,7 @@ from .config import (
     FactorSetting,
     GageProfile,
     LotProfile,
+    PanelProfile,
     ReferenceProfile,
     TrialProfile,
 )
@@ -30,6 +32,7 @@ from .drift import CHECK_COLUMNS, DRIFT_COLUMNS, drift_designs, drift_studies, s
 from .factorial import factorial_effects, factorial_runs
 from .gage import GAGE_COLUMNS, gage_studies, specifications
 from .lots import LOT_COLUMNS, inspection_lots, lot_designs
+from .panel import PANEL_COLUMNS, PHASES, improvement_designs, site_performance
 from .reference import REFERENCE_COLUMNS, reference_designs, reference_studies
 from .trial import ARMS, TRIAL_COLUMNS, improvement_trials, trial_designs
 
@@ -53,7 +56,11 @@ __all__ = [
     "LOT_COLUMNS",
     "LotProfile",
     "OPERATORS",
+    "PANELS",
+    "PANEL_COLUMNS",
     "PARTS",
+    "PHASES",
+    "PanelProfile",
     "REFERENCES",
     "REFERENCE_COLUMNS",
     "REPLICATES",
@@ -70,11 +77,13 @@ __all__ = [
     "gage_studies",
     "generate_dataset",
     "group_comparisons",
+    "improvement_designs",
     "improvement_trials",
     "inspection_lots",
     "lot_designs",
     "reference_designs",
     "reference_studies",
+    "site_performance",
     "specifications",
     "stability_checks",
     "trial_designs",

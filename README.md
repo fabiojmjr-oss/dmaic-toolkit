@@ -19,6 +19,7 @@ table is produced by a seeded generator whose parameters are written down. See
 | --- | --- | --- |
 | [`dmaic.measure`](src/dmaic/measure/README.md) | Measure | Can this measurement system tell the parts apart, is it right, how long does that last, and what does being wrong cost? |
 | [`dmaic.analyze`](src/dmaic/analyze/README.md) | Analyze | How much data does this test need, does it hold the error rate it claims, and can the experiment separate the effects it is being asked about? |
+| [`dmaic.improve`](src/dmaic/improve/README.md) | Improve | How much of this improvement is the project's, was any of it an artefact of how the sites were chosen, and how much of the saving is cash? |
 | [`dmaic.control`](src/dmaic/control/README.md) | Control | What does this sampling plan actually catch, what does it let through, and what did the inspection buy? |
 
 [`docs/ROADMAP.md`](docs/ROADMAP.md) lists the phases not yet built, and says why the Control
@@ -295,6 +296,57 @@ The published plan inspects 25,000 units and ships three quarters of the defects
 catches every excursion does it by quarantining more than a third of good production — it is not
 discriminating, it is harsh. Sampling sorts lots; it does not change what is in them.
 
+### Wave 7 — was the saving yours, and is it cash?
+
+Twenty sites over twenty-four months, five improved from month thirteen. The generator declares
+the effect it applied, **−5.00 BRL per order**, and the trend that was already running, **−0.40 per
+period** — which moves the measurand −4.80 over the twelve periods after the split, in treated and
+untreated sites alike.
+
+| Basis | Estimate | Comparison sites | Attributable | Times the truth |
+| --- | --- | --- | --- | --- |
+| Before and after | **−10.0637** | 0 | no | **2.01×** |
+| Difference in differences | −4.2241 | 15 | yes | 0.84× |
+| The truth | −5.0000 | — | — | 1.00× |
+
+**The project reports twice what it delivered, and the surplus is the calendar.** A before-and-after
+number is not imprecise about the benefit; it is systematically wrong in one direction, and the
+direction is always flattering. A comparison group fixes it without modelling anything: the
+difference in differences lands at −4.2241 with an interval of **−5.2545 to −3.1938**, which
+contains the truth. It is off by chance rather than by construction, and the interval says by how
+much.
+
+**And what a project shows when it does nothing at all.** No effect and no trend in any row below —
+the only thing happening is which sites got chartered, and how long a baseline that choice was made
+on:
+
+| Baseline periods | Worst performers selected | Randomly selected |
+| --- | --- | --- |
+| 1 | **−4.3401** | −0.0524 |
+| 3 | −1.6997 | −0.0262 |
+| 12 | −0.4562 | +0.0005 |
+| 24 | −0.2294 | −0.0022 |
+
+Chartering on a single bad month manufactures −4.34 out of nothing: **87% of a real five-unit
+improvement, in sites where nothing was done.** Random selection returns zero in every row, which
+is the control — the artefact is in the selection rule, not the arithmetic. And the remedy is free:
+a year of baseline brings it to −0.46.
+
+**Then the money.** 60,000 orders a period across the treated sites, twelve periods, 35% of the
+unit cost avoidable as cash, a project costing 250,000:
+
+| Basis | Effect | Gross | Cash | Net | Payback |
+| --- | --- | --- | --- | --- | --- |
+| Booked on before and after | −10.06 | **7,245,895** | 2,536,063 | 2,286,063 | 1.18 |
+| Difference in differences | −4.22 | 3,041,368 | 1,064,479 | 814,479 | 2.82 |
+| The truth | −5.00 | 3,600,000 | **1,260,000** | 1,010,000 | 2.38 |
+
+**The charter books 7,245,895 and the project produced 1,260,000 of cash — 5.75×.** That gap is a
+product, not a mystery: **2.01× for attribution and 2.86× for the share that is cash rather than
+capacity**, and 2.01 × 2.86 = 5.75 exactly. Two factors, neither written down anywhere in the
+project's documentation. `BenefitCase` reports gross and cash separately and declines to add them
+up.
+
 ## Examples
 
 | Script | What it shows |
@@ -306,12 +358,13 @@ discriminating, it is harsh. Sampling sorts lots; it does not change what is in 
 | [`05_the_gage_passed_and_it_is_wrong.py`](examples/05_the_gage_passed_and_it_is_wrong.py) | The gage the study approved, measured against masters, and what its bias costs in parts |
 | [`06_the_study_took_two_weeks.py`](examples/06_the_study_took_two_weeks.py) | A drifting gage: the calibration interval, and the schedule that blames the operators for the calendar |
 | [`07_what_the_sampling_plan_guarantees.py`](examples/07_what_the_sampling_plan_guarantees.py) | Five sampling plans on the same two hundred lots, and what each one actually bought |
+| [`08_was_the_saving_yours.py`](examples/08_was_the_saving_yours.py) | A project that delivered 5.00 per order and reported 10.06, and the money that follows |
 
 ## Verification
 
-**189 tests, 96% statement coverage, split by cost.** 162 of them run in about ten seconds,
-and the whole `make check` sequence — linters, type check, coverage and all — in about eleven. That
-is what a push is gated on. The remaining 27 re-derive every figure quoted in a README and run
+**211 tests, 96% statement coverage, split by cost.** 181 of them run in about eight and a half
+seconds, and the whole `make check` sequence — linters, type check, coverage and all — in under ten.
+That is what a push is gated on. The remaining 30 re-derive every figure quoted in a README and run
 every example script, in about twelve seconds.
 
 The gage ANOVA is verified against a 2×2×2 design whose sums of squares are integers (242, 50, 2

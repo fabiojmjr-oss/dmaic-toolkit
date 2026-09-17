@@ -29,6 +29,12 @@ from dmaic.control import (
     percentage_plan,
     plan_for,
 )
+from dmaic.improve import (
+    BenefitCase,
+    before_after,
+    difference_in_differences,
+    regression_to_the_mean,
+)
 from dmaic.measure import (
     bias_significance_tradeoff,
     bias_study,
@@ -39,7 +45,7 @@ from dmaic.measure import (
     misclassification,
     stability_study,
 )
-from dmaic.synth import DRIFTS, FACTORIALS, GAGES, Dataset
+from dmaic.synth import DRIFTS, FACTORIALS, GAGES, PANELS, Dataset
 
 FACTORIAL = FACTORIALS[0]
 
@@ -562,7 +568,7 @@ def test_every_example_runs_and_prints_something() -> None:
 
     root = Path(__file__).resolve().parents[1]
     scripts = sorted((root / "examples").glob("*.py"))
-    assert len(scripts) == 7
+    assert len(scripts) == 8
 
     for script in scripts:
         captured, sys.stdout = sys.stdout, StringIO()
@@ -984,3 +990,110 @@ def test_what_each_plan_bought_reproduces(full: Dataset) -> None:
         assert int((~bad["accepted"]).sum()) == caught, f"{label} excursions caught"
         assert int((~good["accepted"]).sum()) == rejected_good, f"{label} good lots rejected"
         assert int(decided.loc[decided["accepted"], "defectives"].sum()) == shipped, label
+
+
+@pytest.mark.slow
+def test_the_three_estimates_of_one_effect_reproduce(full: Dataset) -> None:
+    """The attribution table in the improve README and both root READMEs."""
+    profile = PANELS[0]
+    panel = full.site_performance
+    naive = before_after(panel, split=profile.split)
+    did = difference_in_differences(panel, split=profile.split)
+
+    assert naive.effect == pytest.approx(-10.0637, abs=5e-5)
+    assert naive.controls == 0
+    assert not naive.attributable
+    assert naive.effect / profile.true_effect == pytest.approx(2.01, abs=5e-3)
+
+    assert did.effect == pytest.approx(-4.2241, abs=5e-5)
+    assert did.treated == 5
+    assert did.controls == 15
+    assert did.attributable
+    assert did.significant
+    assert did.comparison is not None
+    low, high = did.comparison.confidence_interval
+    assert low == pytest.approx(-5.2545, abs=5e-5)
+    assert high == pytest.approx(-3.1938, abs=5e-5)
+    # The published claim about that interval: it contains the effect that was applied.
+    assert low < profile.true_effect < high
+
+    # The trend accounts for almost the whole of the before-and-after surplus.
+    follow = profile.periods - profile.split
+    assert profile.trend * follow == pytest.approx(-4.80)
+    assert naive.effect - profile.true_effect == pytest.approx(-5.06, abs=5e-3)
+
+
+@pytest.mark.slow
+def test_the_selection_artefact_table_reproduces() -> None:
+    """The regression-to-the-mean sweep, and the control column that has to be zero."""
+    profile = PANELS[0]
+    table = regression_to_the_mean(
+        (1, 3, 6, 12, 24),
+        sites=profile.sites,
+        selected=profile.treated,
+        site_sd=profile.site_sd,
+        noise=profile.noise,
+        follow_periods=profile.periods - profile.split,
+    ).set_index("baseline_periods")
+    expected = {
+        # baseline: (worst selected, randomly selected)
+        1: (-4.3401, -0.0524),
+        3: (-1.6997, -0.0262),
+        6: (-0.8365, -0.0063),
+        12: (-0.4562, 0.0005),
+        24: (-0.2294, -0.0022),
+    }
+    for baseline, (worst, random_pick) in expected.items():
+        assert table.loc[baseline, "worst_selected"] == pytest.approx(worst, abs=5e-5)
+        assert table.loc[baseline, "random_selected"] == pytest.approx(random_pick, abs=5e-5)
+
+    # The published reading of the first row: 87% of a real five-unit improvement, from nothing.
+    assert abs(table.loc[1, "worst_selected"]) / abs(profile.true_effect) == pytest.approx(
+        0.87, abs=5e-3
+    )
+
+
+@pytest.mark.slow
+def test_the_money_table_reproduces(full: Dataset) -> None:
+    """The benefit case on each basis, and the decomposition of the gap between them."""
+    profile = PANELS[0]
+    panel = full.site_performance
+    follow = profile.periods - profile.split
+    volume = profile.units_per_period * profile.treated
+    assert volume == 60000.0
+
+    naive = before_after(panel, split=profile.split)
+    did = difference_in_differences(panel, split=profile.split)
+
+    def case(effect: float) -> BenefitCase:
+        return BenefitCase(
+            effect=effect,
+            units_per_period=volume,
+            periods=follow,
+            variable_share=profile.variable_share,
+            project_cost=profile.project_cost,
+        )
+
+    expected = {
+        # basis: (gross, cash, capacity, net, payback)
+        "booked": (case(naive.effect), 7245895, 2536063, 4709832, 2286063, 1.18),
+        "did": (case(did.effect), 3041368, 1064479, 1976889, 814479, 2.82),
+        "truth": (case(profile.true_effect), 3600000, 1260000, 2340000, 1010000, 2.38),
+    }
+    for label, row in expected.items():
+        built, gross, cash, capacity, net, payback = row
+        assert built.gross == pytest.approx(gross, abs=1.0), f"{label} gross"
+        assert built.cash == pytest.approx(cash, abs=1.0), f"{label} cash"
+        assert built.capacity == pytest.approx(capacity, abs=1.0), f"{label} capacity"
+        assert built.net == pytest.approx(net, abs=1.0), f"{label} net"
+        assert built.payback_periods == pytest.approx(payback, abs=5e-3), f"{label} payback"
+
+    booked = case(naive.effect).gross
+    real = case(profile.true_effect).cash
+    # The headline multiple, and the two factors it is the product of.
+    assert booked / real == pytest.approx(5.75, abs=5e-3)
+    attribution = naive.effect / profile.true_effect
+    conversion = 1.0 / profile.variable_share
+    assert attribution == pytest.approx(2.01, abs=5e-3)
+    assert conversion == pytest.approx(2.86, abs=5e-3)
+    assert attribution * conversion == pytest.approx(booked / real, abs=1e-9)

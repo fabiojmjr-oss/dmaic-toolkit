@@ -353,13 +353,61 @@ scheme's protection actually comes from. And attribute agreement, where the meas
 judgement rather than a number — the gap that makes every sampling figure conditional on an
 inspector nobody studied.
 
-## Wave 7 — Define and Improve
+## Wave 7 — Improve: was the saving yours, and is it cash?
 
-*Not built.* Define artifacts that carry arithmetic rather than formatting — a charter whose
-benefit case is computable, CTQ trees with measurable leaves. Improve: pilot design, and
-benefit realisation measured against a counterfactual rather than against last quarter.
+**Benefit realisation** *(complete — [`dmaic.improve`](../src/dmaic/improve/README.md))*. The
+before-and-after comparison a project reports, the difference in differences that removes the trend
+from it, the selection artefact priced against baseline length, and a benefit case that keeps cash
+and capacity apart.
 
-## Wave 8 — Control: the rest of the plan
+The wave exists because a project's reported saving is the sum of three things and only one of them
+is the project. Twenty sites over twenty-four months, five improved from month thirteen, with the
+effect and the trend both declared.
+
+- **The project reports twice what it delivered.** −10.0637 against a true −5.00, and the surplus
+  is the trend of −0.40 a period that the untreated sites also enjoyed. This is not imprecision: a
+  before-and-after number contains the trend in full, no amount of data narrows it away, and the
+  error is always in the flattering direction.
+- **A comparison group removes it without modelling it.** The difference in differences lands at
+  −4.2241 with an interval of −5.2545 to −3.1938, which contains the effect that was applied. Off
+  by chance rather than by construction — the only kind of wrong more sites fix.
+- **The unit of analysis is the site, not the site-period.** Twenty sites over twenty-four months
+  is twenty observations of a change, not four hundred and eighty, and the test behind the estimate
+  is Welch's on site-level changes. Treating site-periods as independent is how this estimator
+  arrives at a p-value three orders of magnitude too small.
+- **Chartering on the worst performer manufactures an improvement from nothing.** With no effect and
+  no trend at all, taking the worst five of twenty sites on a one-period baseline shows −4.3401 —
+  **87% of a real five-unit improvement**, in sites where nothing was done. Random selection returns
+  zero at every baseline length, which is the control. And the remedy is free: twelve periods of
+  baseline bring the artefact to −0.4562 and twenty-four to −0.2294.
+- **The money gap is a product of two factors nobody writes down.** The charter books 7,245,895
+  gross; the project produced 1,260,000 of cash. 5.75×, which is exactly 2.01× for attribution times
+  2.86× for the share of a modelled cost that is avoidable rather than freed capacity.
+  `BenefitCase` reports gross and cash separately and declines to add them up: a project that books
+  capacity as cash is not wrong about the process, it is wrong about the bank account.
+
+**A defect of my own, and it is wave 3's own argument turned on me.** `difference_in_differences`
+gets its p-value from `compare_means`, whose assumption checks *raise* on a group with no spread or
+with fewer than three observations. So a noiseless panel, or a project with two treated sites,
+crashed instead of returning an estimate — and the estimate is a difference of two averages that
+depends on no diagnostic at all. Wave 3's thesis is that the checks are evidence rather than a gate;
+a check that raises is a gate by another name. The estimate now comes back either way, with
+`untested_because` saying why no test came with it.
+
+**Still to build in this phase:** staggered adoption, where sites start at different times and a
+two-by-two is the wrong shape. An effect that grows or decays after the change rather than stepping.
+And the parallel-trends check itself, which is computable from the same panel and is the assumption
+the whole estimator rests on.
+
+## Wave 8 — Define: artifacts that carry arithmetic
+
+*Not built.* A charter whose benefit case is computable rather than formatted — which wave 7's
+`BenefitCase` is half of, and the other half is what gets into it before any data exists. CTQ trees
+with measurable leaves, and a problem statement that names the measurand, the baseline window and
+the comparison group in advance, because all three are decisions and all three are usually made
+after the result is known.
+
+## Wave 9 — Control: the rest of the plan
 
 *Not built.* Control plans as documents that carry arithmetic, and sustaining verification —
 whether the gain held, measured against a counterfactual rather than against last quarter.
