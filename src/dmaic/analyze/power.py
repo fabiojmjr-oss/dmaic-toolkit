@@ -138,6 +138,17 @@ def _power_from_noncentral_t(ncp: float, df: float, alpha: float, alternative: s
         critical = stats.t.ppf(1.0 - alpha / 2.0, df)
         upper = float(stats.nct.sf(critical, df, ncp))
         lower = float(stats.nct.cdf(-critical, df, ncp))
+        # Rejecting in the direction opposite the true effect is negligible once the noncentrality
+        # is large, and scipy returns nan for that tail at small degrees of freedom rather than a
+        # small number - at df=2 and ncp=25 the lower tail comes back nan while the upper is 1.0
+        # to fourteen figures. Each tail is therefore replaced by its limit for a large
+        # noncentrality of that sign, which is an error no larger than the value it replaces. It is
+        # reached by a solver walking its bracket outwards, and without it the whole calculation
+        # returns nan for an effect large enough that the answer is obvious.
+        if not math.isfinite(lower):
+            lower = 0.0 if ncp >= 0 else 1.0
+        if not math.isfinite(upper):
+            upper = 1.0 if ncp >= 0 else 0.0
         return upper + lower
     if alternative == "greater":
         return float(stats.nct.sf(stats.t.ppf(1.0 - alpha, df), df, ncp))

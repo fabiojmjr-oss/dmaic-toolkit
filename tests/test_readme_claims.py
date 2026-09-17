@@ -23,11 +23,15 @@ from dmaic.analyze import (
 from dmaic.analyze.factorial import IDENTITY
 from dmaic.control import (
     SamplingPlan,
+    decay_detection,
     inspect_lots,
     matched_plan,
     oc_curve,
     percentage_plan,
     plan_for,
+    reported_gain,
+    retention_path,
+    sustain_audit,
 )
 from dmaic.define import (
     Charter,
@@ -53,7 +57,7 @@ from dmaic.measure import (
     misclassification,
     stability_study,
 )
-from dmaic.synth import DRIFTS, FACTORIALS, GAGES, PANELS, Dataset
+from dmaic.synth import DRIFTS, FACTORIALS, GAGES, PANELS, SUSTAINS, Dataset, mean_true_effect
 
 FACTORIAL = FACTORIALS[0]
 
@@ -576,7 +580,7 @@ def test_every_example_runs_and_prints_something() -> None:
 
     root = Path(__file__).resolve().parents[1]
     scripts = sorted((root / "examples").glob("*.py"))
-    assert len(scripts) == 9
+    assert len(scripts) == 10
 
     for script in scripts:
         captured, sys.stdout = sys.stdout, StringIO()
@@ -1241,3 +1245,76 @@ def test_the_ctq_tree_over_attributes_by_the_published_multiple(full: Dataset) -
     assert tree.unmeasurable_claim == pytest.approx(4.40)
     assert tree.unmeasurable_claim / tree.claimed == pytest.approx(0.224, abs=5e-4)
     assert not tree.measurable
+
+
+@pytest.mark.slow
+def test_the_sustain_report_grows_while_the_gain_shrinks(full: Dataset) -> None:
+    """The reported-gain table in the sustain README and both root READMEs."""
+    profile = SUSTAINS[0]
+    quarters = ((13, 18), (19, 24), (25, 30), (31, 36))
+    reported = reported_gain(full.sustain_panel, split=profile.split, windows=quarters)
+    expected = {
+        # window: (reported gain, true effect)
+        (13, 18): (-9.1599, -4.3488),
+        (19, 24): (-9.5392, -3.0750),
+        (25, 30): (-11.0472, -2.1744),
+        (31, 36): (-11.5753, -1.5375),
+    }
+    for row, (window, (gain, truth)) in enumerate(expected.items()):
+        assert reported.loc[row, "reported_gain"] == pytest.approx(gain, abs=5e-5), window
+        assert mean_true_effect(profile, *window) == pytest.approx(truth, abs=5e-5), window
+        assert not bool(reported.loc[row, "attributable"])
+
+    # The published reading: the report rises by more than the gain falls.
+    grew = abs(reported.loc[3, "reported_gain"]) - abs(reported.loc[0, "reported_gain"])
+    fell = abs(mean_true_effect(profile, 13, 18)) - abs(mean_true_effect(profile, 31, 36))
+    assert grew == pytest.approx(2.42, abs=5e-3)
+    assert fell == pytest.approx(2.81, abs=5e-3)
+
+
+@pytest.mark.slow
+def test_the_retention_path_and_the_audit_reproduce(full: Dataset) -> None:
+    """The two-window table, and the overlap that decides what can be concluded."""
+    profile = SUSTAINS[0]
+    close, audit_window = (13, 24), (25, 36)
+    path = retention_path(full.sustain_panel, split=profile.split, windows=(close, audit_window))
+    expected = (
+        # (true effect, estimate, low, high)
+        (-3.7119, -4.1721, -5.7224, -2.6219),
+        (-1.8560, -1.7827, -3.6341, 0.0687),
+    )
+    for row, (truth, estimate, low, high) in enumerate(expected):
+        window = close if row == 0 else audit_window
+        assert mean_true_effect(profile, *window) == pytest.approx(truth, abs=5e-5)
+        assert path.loc[row, "estimate"] == pytest.approx(estimate, abs=5e-5)
+        assert path.loc[row, "low"] == pytest.approx(low, abs=5e-5)
+        assert path.loc[row, "high"] == pytest.approx(high, abs=5e-5)
+        # The published claim about both intervals: each contains the effect that was there.
+        assert path.loc[row, "low"] < mean_true_effect(profile, *window) < path.loc[row, "high"]
+
+    audit = sustain_audit(full.sustain_panel, split=profile.split, close=close, audit=audit_window)
+    assert audit.retention == pytest.approx(0.4273, abs=5e-5)
+    assert mean_true_effect(profile, *audit_window) / mean_true_effect(
+        profile, *close
+    ) == pytest.approx(0.50, abs=1e-12)
+    assert audit.decay == pytest.approx(2.3895, abs=5e-5)
+    assert audit.detectable_decay == pytest.approx(2.5604, abs=5e-5)
+    assert audit.change_sd == pytest.approx(2.1394, abs=5e-5)
+    assert audit.intervals_overlap
+    assert not audit.decay_detectable
+
+
+@pytest.mark.slow
+def test_the_decay_detection_table_reproduces(full: Dataset) -> None:
+    """What the audit would have needed, on the audit's own observed spread."""
+    profile = SUSTAINS[0]
+    audit = sustain_audit(full.sustain_panel, split=profile.split, close=(13, 24), audit=(25, 36))
+    table = decay_detection(
+        (0.5, 1.0, 1.856, 3.0, 5.0), units=profile.treated, change_sd=audit.change_sd
+    ).set_index("decay")
+    expected = {0.5: 0.0850, 1.0: 0.1948, 1.856: 0.5287, 3.0: 0.9068, 5.0: 0.9998}
+    for decay, power in expected.items():
+        assert table.loc[decay, "power"] == pytest.approx(power, abs=5e-5)
+        assert table.loc[decay, "detectable"] == pytest.approx(2.5604, abs=5e-5)
+    # The published reading: against the decay that happened, the audit is a coin flip.
+    assert table.loc[1.856, "power"] == pytest.approx(0.53, abs=5e-3)

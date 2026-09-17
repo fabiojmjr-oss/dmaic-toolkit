@@ -15,6 +15,7 @@ from .gage import gage_studies, specifications
 from .lots import inspection_lots, lot_designs
 from .panel import improvement_designs, site_performance
 from .reference import reference_designs, reference_studies
+from .sustain import sustain_designs, sustain_panel
 from .trial import improvement_trials, trial_designs
 
 
@@ -40,6 +41,8 @@ class Dataset:
         lot_designs: One row per stream, with the two states' true defect rates.
         site_performance: One row per site and period of an improvement panel.
         improvement_designs: One row per panel, with the effect and the trend built into it.
+        sustain_panel: One row per site and period of a three-year panel whose gain decays.
+        sustain_designs: One row per sustain panel, with the decay built into it.
     """
 
     gage_studies: pd.DataFrame
@@ -59,6 +62,8 @@ class Dataset:
     lot_designs: pd.DataFrame
     site_performance: pd.DataFrame
     improvement_designs: pd.DataFrame
+    sustain_panel: pd.DataFrame
+    sustain_designs: pd.DataFrame
 
 
 def generate_dataset(seed: int = SEED) -> Dataset:
@@ -99,4 +104,7 @@ def generate_dataset(seed: int = SEED) -> Dataset:
         # Appended after the lots, so waves 1 to 6 are untouched by wave 7.
         site_performance=site_performance(rng),
         improvement_designs=improvement_designs(),
+        # Appended after the improvement panel, so waves 1 to 7 are untouched by wave 9.
+        sustain_panel=sustain_panel(rng),
+        sustain_designs=sustain_designs(),
     )

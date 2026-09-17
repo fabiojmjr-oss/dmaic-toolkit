@@ -12,7 +12,7 @@ Gage names (`BALANCA-01`, `PAQUIMETRO-02`, `INSPECAO-03`), operator names (`OP-A
 `OP-C`), part numbers and specification limits are **invented labels**. So are the pilot names
 (`PILOTO-CICLO`, `PILOTO-SETUP`, `PILOTO-REFUGO`), the group names in the comparisons (`TURNO-A`,
 `TURNO-B`, `LINHA-1`, `LINHA-2`, `CELULA-X`, `CELULA-Y`, `FORN-X`, `FORN-Y`) and the experiment
-(`FORNO-CURA`, with its factors and levels). The reference values the gages are measured against are invented too, and are exact by construction: a real calibrated master carries its own uncertainty, and that limitation is stated in the module documentation rather than hidden. The improvement panel's sites (`CD-01` to `CD-20`), its volumes, its cost per order and its project cost are invented too, as is the critical-to-quality decomposition in example 09 and every contribution in it. None of these are references to any real instrument,
+(`FORNO-CURA`, with its factors and levels). The reference values the gages are measured against are invented too, and are exact by construction: a real calibrated master carries its own uncertainty, and that limitation is stated in the module documentation rather than hidden. The improvement panel's sites (`CD-01` to `CD-20`), its volumes, its cost per order and its project cost are invented too, as is the critical-to-quality decomposition in example 09 and every contribution in it, along with the three-year sustain panel and the decay built into it. None of these are references to any real instrument,
 person, part, shift, line, cell, supplier, process or specification, and any resemblance to one
 is coincidental.
 
@@ -41,7 +41,7 @@ Nomes de gage (`BALANCA-01`, `PAQUIMETRO-02`, `INSPECAO-03`), nomes de operador 
 `OP-C`), números de peça e limites de especificação são **rótulos inventados**. Também são os
 nomes dos pilotos (`PILOTO-CICLO`, `PILOTO-SETUP`, `PILOTO-REFUGO`), os nomes dos grupos nas
 comparações (`TURNO-A`, `TURNO-B`, `LINHA-1`, `LINHA-2`, `CELULA-X`, `CELULA-Y`, `FORN-X`,
-`FORN-Y`) e o experimento (`FORNO-CURA`, com seus fatores e níveis). Os valores de referência contra os quais os gages são medidos também são inventados, e são exatos por construção: um padrão calibrado real carrega incerteza própria, e essa limitação está declarada na documentação do módulo em vez de escondida. Os sites do painel de melhoria (`CD-01` a `CD-20`), os volumes, o custo por pedido e o custo do projeto também são inventados, assim como a decomposição critical-to-quality do exemplo 09 e cada contribuição dela. Nada disso é referência a
+`FORN-Y`) e o experimento (`FORNO-CURA`, com seus fatores e níveis). Os valores de referência contra os quais os gages são medidos também são inventados, e são exatos por construção: um padrão calibrado real carrega incerteza própria, e essa limitação está declarada na documentação do módulo em vez de escondida. Os sites do painel de melhoria (`CD-01` a `CD-20`), os volumes, o custo por pedido e o custo do projeto também são inventados, assim como a decomposição critical-to-quality do exemplo 09 e cada contribuição dela, junto com o painel de sustentação de três anos e a decadência embutida nele. Nada disso é referência a
 nenhum instrumento, pessoa, peça, turno, linha, célula, fornecedor, processo ou especificação
 real, e qualquer semelhança é coincidência.
 
