@@ -22,7 +22,7 @@ escritos. Ver [`DISCLAIMER.md`](DISCLAIMER.md).
 | [`dmaic.measure`](src/dmaic/measure/README.md) | Measure | Este sistema de medição distingue as peças, ele está certo, quanto tempo isso dura, e quanto custa estar errado? |
 | [`dmaic.analyze`](src/dmaic/analyze/README.md) | Analyze | De quanto dado este teste precisa, ele mantém a taxa de erro que alega, e o experimento consegue separar os efeitos sobre os quais está sendo perguntado? |
 | [`dmaic.improve`](src/dmaic/improve/README.md) | Improve | Quanto desta melhoria é do projeto, alguma parte foi artefato de como os sites foram escolhidos, e quanto da economia é caixa? |
-| [`dmaic.control`](src/dmaic/control/README.md) | Control | O ganho se sustentou, a auditoria conseguiria dizer o contrário, e o que este plano de amostragem de fato pega? |
+| [`dmaic.control`](src/dmaic/control/README.md) | Control | O ganho se sustentou, o que este plano de amostragem pega, e o que os gatilhos do plano de fato prometem? |
 
 O [`docs/ROADMAP.md`](docs/ROADMAP.md) lista as fases ainda não construídas, e explica por que a
 fase Control é deliberadamente mais estreita do que parece.
@@ -428,6 +428,51 @@ auditoria quando o projeto encerra — enquanto ainda há alguém com quem discu
 recebe — em vez de um ano depois, quando a resposta é devida. A aritmética é a da onda 2, inalterada,
 aplicada um ano antes do que todo mundo aplica.
 
+### Onda 10 — o gatilho que ninguém precificou
+
+Um plano de controle é uma tabela de gatilhos, cada um um teste de hipótese rodado todo dia por anos.
+O plano registra quem reage, como e para quem escala — e não as duas cifras que decidem se reagir vale
+algo: com que frequência o gatilho dispara quando nada está errado, e quanto tempo leva quando algo
+está.
+
+**Um gatilho absoluto tem taxa de alarme falso que o sistema de medição controla.** "Reagir se a média
+diária mover mais de 1,00", vinte unidades por dia, dispersão intradiária 2,00:
+
+| Gage | sd total | Alarmes falsos por dia | Dias entre eles | Parcela do gage | Dias para pegar desvio de 1,00 |
+| --- | --- | --- | --- | --- | --- |
+| sem erro de gage | 2,0000 | 0,1138 | 8,78 | 0% | 2,00 |
+| 16,2% da tolerância | 2,4130 | 0,1900 | 5,26 | **40%** | 1,98 |
+| 63,6% da tolerância | 5,6648 | **0,5767** | **1,73** | **80%** | 1,58 |
+
+Um alarme falso a cada 8,78 dias vira um a cada 1,73, e **80% dessas reações são o instrumento** —
+enquanto a detecção de um desvio real quase não muda. O gage ruim não compra velocidade e custa cinco
+vezes a carga de reação. Quem reage vivencia isso como um processo fora de controle.
+
+**Um gatilho relativo esconde o gage.** "Reagir se o movimento exceder três sigma da dispersão
+observada" — o limite agora vem do dado:
+
+| Gage | Limite | Alarmes falsos por dia | Dias para pegar desvio de 1,00 |
+| --- | --- | --- | --- |
+| sem erro de gage | 1,8974 | **0,0027** | 12,83 |
+| 16,2% da tolerância | 2,2892 | **0,0027** | 21,94 |
+| 63,6% da tolerância | **5,3741** | **0,0027** | **133,43** |
+
+**A taxa de alarme falso é idêntica até a quarta decimal qualquer que seja o gage** — é a cifra que
+qualquer um verifica, e ela diz que o plano está bem. O que muda é a reação: **dez vezes mais lenta**,
+com a mesma taxa e as mesmas palavras na página. As duas formas de gatilho falham em direções opostas,
+e não existe redação que escape do sistema de medição — só uma escolha sobre onde ele se esconde.
+
+**E um gatilho de especificação é lento sem ser silencioso.** Num processo com capabilidade 1,0417 e
+nada errado, "reagir quando qualquer unidade estiver fora da especificação" dispara a cada **28,60
+dias** com vinte peças — cerca de 2,2 reações por trimestre num processo exatamente no alvo — enquanto
+um desvio de um sigma leva 3,48 dias para aparecer com vinte peças e **12,30 dias com cinco**.
+
+**A troca que ninguém declara:** de 107 alarmes falsos por ano com reação em 1,26 dia, a um a cada dois
+mil anos com reação que leva cinco. Alguém escolheu uma linha quando escreveu o plano, e o plano não
+diz qual linha nem por quê. Uma carta de controle é o instrumento que torna essa troca explícita e
+ajustável — ela mora no pacote irmão `oplab.spc`, e o que é precificado aqui são os gatilhos que as
+pessoas escrevem *em vez* de uma carta.
+
 ## Exemplos
 
 | Script | O que mostra |
@@ -442,13 +487,14 @@ aplicada um ano antes do que todo mundo aplica.
 | [`08_was_the_saving_yours.py`](examples/08_was_the_saving_yours.py) | Um projeto que entregou 5,00 por pedido e reportou 10,06, e o dinheiro que vem disso |
 | [`09_the_charter_that_computes.py`](examples/09_the_charter_that_computes.py) | Um charter medido da ponta errada do baseline, em direção à ponta errada da meta |
 | [`10_did_the_gain_hold.py`](examples/10_did_the_gain_hold.py) | Um ganho que caiu à metade, reportado como um ganho crescente, e uma auditoria que não consegue dizer |
+| [`11_the_trigger_nobody_priced.py`](examples/11_the_trigger_nobody_priced.py) | Três regras de reação de um plano de controle, precificadas como os testes que são |
 
 ## Verificação
 
-**252 testes, 97% de cobertura de statements, separados por custo.** 215 deles rodam em cerca de
-dez segundos, e a sequência inteira do `make check` — linters, tipos, cobertura e tudo — em cerca de
-dez. É isso que barra um push. Os 37 restantes re-derivam toda figura citada em um README e rodam
-todo script de exemplo, em cerca de onze segundos.
+**272 testes, 97% de cobertura de statements, separados por custo.** 231 deles rodam em cerca de
+onze segundos, e a sequência inteira do `make check` — linters, tipos, cobertura e tudo — em cerca de
+treze. É isso que barra um push. Os 41 restantes re-derivam toda figura citada em um README e rodam
+todo script de exemplo, em cerca de dezesseis segundos.
 
 A ANOVA do gage é verificada contra um desenho 2×2×2 cujas somas de quadrados são inteiras (242,
 50, 2 e 8, fechando em 302), e não apenas contra a própria saída. Verificações independentes de

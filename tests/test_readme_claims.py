@@ -22,7 +22,11 @@ from dmaic.analyze import (
 )
 from dmaic.analyze.factorial import IDENTITY
 from dmaic.control import (
+    ReactionRule,
     SamplingPlan,
+    alarms_against_delay,
+    capability,
+    compare_gages,
     decay_detection,
     inspect_lots,
     matched_plan,
@@ -31,6 +35,8 @@ from dmaic.control import (
     plan_for,
     reported_gain,
     retention_path,
+    rule_from_spread,
+    spec_trigger,
     sustain_audit,
 )
 from dmaic.define import (
@@ -580,7 +586,7 @@ def test_every_example_runs_and_prints_something() -> None:
 
     root = Path(__file__).resolve().parents[1]
     scripts = sorted((root / "examples").glob("*.py"))
-    assert len(scripts) == 10
+    assert len(scripts) == 11
 
     for script in scripts:
         captured, sys.stdout = sys.stdout, StringIO()
@@ -1318,3 +1324,107 @@ def test_the_decay_detection_table_reproduces(full: Dataset) -> None:
         assert table.loc[decay, "detectable"] == pytest.approx(2.5604, abs=5e-5)
     # The published reading: against the decay that happened, the audit is a coin flip.
     assert table.loc[1.856, "power"] == pytest.approx(0.53, abs=5e-3)
+
+
+# The three gages of examples 01 and 05, as the spread each adds to a reading, on the 50-unit
+# tolerance those examples use.
+PLAN_GAGES = (
+    ("no gage error", 0.0),
+    ("5.7% of tolerance", 0.4743),
+    ("16.2% of tolerance", 0.162 * 50.0 / 6),
+    ("63.6% of tolerance", 0.636 * 50.0 / 6),
+)
+
+
+@pytest.mark.slow
+def test_the_absolute_trigger_table_reproduces() -> None:
+    """The gage's share of the false alarms, in the plan README and both root READMEs."""
+    table = compare_gages(PLAN_GAGES, limit=1.0, subgroup=20, process_sd=2.0, shift=1.0).set_index(
+        "label"
+    )
+    expected = {
+        # label: (total sd, false alarm rate, periods to alarm, gage share, delay)
+        "no gage error": (2.0000, 0.1138, 8.78, 0.0000, 2.00),
+        "5.7% of tolerance": (2.0555, 0.1239, 8.07, 0.0814, 2.00),
+        "16.2% of tolerance": (2.4130, 0.1900, 5.26, 0.4009, 1.98),
+        "63.6% of tolerance": (5.6648, 0.5767, 1.73, 0.8026, 1.58),
+    }
+    for label, row in expected.items():
+        total, rate, periods, share, delay = row
+        assert table.loc[label, "total_sd"] == pytest.approx(total, abs=5e-5)
+        assert table.loc[label, "false_alarm_rate"] == pytest.approx(rate, abs=5e-5)
+        assert table.loc[label, "periods_to_alarm"] == pytest.approx(periods, abs=5e-3)
+        assert table.loc[label, "gage_share"] == pytest.approx(share, abs=5e-5)
+        assert table.loc[label, "delay"] == pytest.approx(delay, abs=5e-3)
+
+
+@pytest.mark.slow
+def test_the_relative_trigger_holds_its_alarm_rate_and_loses_its_reaction() -> None:
+    """The mirror finding: same rate to four decimals, ten times slower to react."""
+    expected = {
+        # gage sd: (limit, days to catch a 1.00 shift)
+        0.0: (1.8974, 12.83),
+        0.4743: (1.9500, 13.90),
+        1.35: (2.2892, 21.94),
+        5.30: (5.3741, 133.43),
+    }
+    rates = []
+    for gage_sd, (limit, delay) in expected.items():
+        rule = rule_from_spread(subgroup=20, process_sd=2.0, gage_sd=gage_sd)
+        assert rule.limit == pytest.approx(limit, abs=5e-5)
+        assert rule.delay(1.0) == pytest.approx(delay, abs=5e-3)
+        assert rule.shift_caught_within(2) == pytest.approx(limit, abs=5e-5)
+        rates.append(rule.false_alarm_rate)
+    # The published claim: identical to four decimals, and in fact to floating point.
+    assert rates == pytest.approx([0.0027] * 4, abs=5e-5)
+    assert max(rates) - min(rates) < 1e-12
+    assert expected[5.30][1] / expected[0.0][1] == pytest.approx(10.4, abs=5e-2)
+
+
+@pytest.mark.slow
+def test_the_specification_trigger_table_reproduces() -> None:
+    """Slow, and not silent: both halves of the published table."""
+    assert capability(8.0, 475.0, 525.0) == pytest.approx(1.0417, abs=5e-5)
+    table = spec_trigger(
+        (0.0, 0.5, 1.0, 2.0), (5, 20), process_sd=8.0, nominal=500.0, lsl=475.0, usl=525.0
+    ).set_index(["shift_sigmas", "subgroup"])
+    expected = {
+        (0.0, 5): (0.008859, 112.88),
+        (0.0, 20): (0.034967, 28.60),
+        (0.5, 5): (0.022185, 45.08),
+        (0.5, 20): (0.085831, 11.65),
+        (1.0, 5): (0.081280, 12.30),
+        (1.0, 20): (0.287585, 3.48),
+        (2.0, 5): (0.502423, 1.99),
+        (2.0, 20): (0.938703, 1.07),
+    }
+    for key, (rate, periods) in expected.items():
+        assert table.loc[key, "rate_per_period"] == pytest.approx(rate, abs=5e-7)
+        assert table.loc[key, "periods_to_react"] == pytest.approx(periods, abs=5e-3)
+
+
+@pytest.mark.slow
+def test_the_alarms_against_delay_table_reproduces() -> None:
+    """The trade a plan makes without saying so, including the two figures quoted in prose."""
+    table = alarms_against_delay(
+        (0.5, 1.0, 1.5, 2.0, 3.0), subgroup=20, process_sd=2.0, shift=1.0
+    ).set_index("limit")
+    expected = {
+        0.5: (0.4292, 107.30, 1.26),
+        1.0: (0.1138, 28.46, 2.00),
+        1.5: (0.0177, 4.43, 4.66),
+        2.0: (0.0016, 0.39, 17.57),
+        3.0: (0.0000, 0.0005, 1277.63),
+    }
+    for limit, (rate, per_year, delay) in expected.items():
+        assert table.loc[limit, "false_alarm_rate"] == pytest.approx(rate, abs=5e-5)
+        assert table.loc[limit, "alarms_per_year"] == pytest.approx(per_year, abs=5e-3)
+        assert table.loc[limit, "delay"] == pytest.approx(delay, abs=5e-3)
+
+    # "one every two thousand years" and "a reaction that takes five".
+    assert 1.0 / table.loc[3.0, "alarms_per_year"] == pytest.approx(2000, rel=0.05)
+    assert table.loc[3.0, "delay"] / 250.0 == pytest.approx(5.1, abs=5e-2)
+    # And the rule the prose builds by hand agrees with the table.
+    assert ReactionRule(limit=1.0, subgroup=20, process_sd=2.0).alarms_per_year == pytest.approx(
+        table.loc[1.0, "alarms_per_year"]
+    )
