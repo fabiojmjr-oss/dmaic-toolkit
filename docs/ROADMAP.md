@@ -494,16 +494,100 @@ a stopping rule and spends its alpha differently from two fixed windows. And dis
 from a practice that spread to the comparison group, which this module explicitly cannot do and which
 is the difference between a failure and the best outcome available.
 
-## Wave 10 — Control: the rest of the plan
+## Wave 10 — Control: the trigger nobody priced
 
-*Not built.* Control plans as documents that carry arithmetic, and sustaining verification —
-whether the gain held, measured against a counterfactual rather than against last quarter.
+**Reaction rules as tests** *(complete —
+[`dmaic.control.plan`](../src/dmaic/control/README-plan.md))*. A control plan's triggers priced for
+what they promise: a false-alarm rate in reactions a year, a detection delay in periods, and the
+share of both that belongs to the measurement system.
 
-**Control charts remain out of scope.** Charts, Nelson run rules and capability against
-within-subgroup sigma already exist in the sibling `oplab.spc` package. Reimplementing them here
-would put the same code in two repositories under one name, which reads as padding to anyone who
-opens both. This toolkit references it instead, and wave 6's sampling module says explicitly that
-acceptance sampling is not a substitute for it.
+A control plan is a table of triggers, each of them a hypothesis test run every day for years. The
+plan records who reacts, how, and to whom it escalates — and neither of the two numbers that decide
+whether reacting is worth anything.
+
+- **An absolute trigger has a false-alarm rate the gage controls.** "React if the daily average moves
+  more than 1.00" fires every 8.78 days through a perfect measurement system and every **1.73 days**
+  through a gage at 63.6% of tolerance, with **80% of those reactions belonging to the instrument** —
+  while the detection of a real shift barely moves, from 2.00 days to 1.58. The bad gage buys no speed
+  and costs five times the reaction workload, and the people reacting experience it as a process out
+  of control.
+- **A relative trigger hides the gage instead.** "React if the move exceeds three sigma of the
+  observed spread" holds its false-alarm rate at 0.0027 a day *whatever the gage* — to floating point,
+  not approximately — while the limit widens from 1.8974 to 5.3741 and the reaction to a real shift
+  goes from 12.83 days to **133.43**. The gage is absent from the figure everybody checks and fully
+  present in the one nobody does.
+- **So the two forms fail in opposite directions**, and there is no form of words that escapes the
+  measurement system: there is only a choice about where it hides, and a plan records neither choice.
+- **A specification trigger is slow without being silent.** At a capability index of 1.0417 and
+  nothing wrong at all it fires every **28.60 days** on twenty pieces — about 2.2 reactions a quarter
+  on a process exactly on target — while a one-sigma shift takes 3.48 days to surface at twenty pieces
+  and **12.30 days at five**. It looks like it has no false-alarm rate because it is phrased as a fact
+  about a part rather than as a test.
+- **And the trade nobody states**: from 107 false alarms a year with a 1.26-day reaction, to one every
+  two thousand years with a reaction that takes five. Somebody chose a row of that table when they
+  wrote the plan; the plan does not say which row or why.
+
+**Control charts remain out of scope, and this wave sharpens why.** A chart is precisely the instrument
+that makes the false-alarm-against-detection trade explicit and tunable, which is the argument for
+using one — and it already exists in the sibling `oplab.spc` package. What this wave prices are the
+triggers people write *instead* of a chart, which is most of them. Reimplementing the charts here
+would put the same code in two repositories under one name.
+
+**No generator table was added.** Every figure is a normal-theory calculation on declared parameters,
+so wave 10 reads the specifications and gage figures the earlier waves already published rather than
+drawing anything new — which is also why the stream-order contract needed nothing of it.
+
+## The phases, as built
+
+All five are now in place, and they answer questions in the order a project asks them:
+
+| Phase | Module | The question it settles |
+| --- | --- | --- |
+| Define | `dmaic.define` | Is this gap real, and which window produced it? |
+| Measure | `dmaic.measure` | Can the gage tell the parts apart, is it right, and how long does that last? |
+| Analyze | `dmaic.analyze` | What could this test find, does it hold its error rate, and can the design separate the effects? |
+| Improve | `dmaic.improve` | How much of the improvement is the project's, and how much of it is cash? |
+| Control | `dmaic.control` | Did the gain hold, what does the sampling plan catch, and what do the triggers promise? |
+
+**One thread runs through all five**, and it was not planned: at every phase the figure a project
+reports is inflated in the flattering direction, by an amount that is computable and that nobody
+computes. The charter's gap at both ends, the gage study blind to its own bias, the fraction awarding
+an interaction to a factor that does nothing, the benefit crediting the calendar, the sustain report
+growing as the gain decays, the trigger reacting to the instrument. None of these are errors of
+arithmetic. Each is a correct calculation of the wrong quantity, and each becomes visible only when
+the quantity is written down as arithmetic rather than as prose.
+
+## What is deliberately not here
+
+Not a backlog. These are boundaries, and each one is a decision with a reason:
+
+- **Control charts, run rules and capability against within-subgroup sigma.** They exist in the
+  sibling `oplab.spc` package. Two repositories holding the same code under one name reads as padding
+  to anyone who opens both, and wave 10's finding is an argument *for* using them rather than a
+  substitute.
+- **Multiplicity, anywhere.** Every sample size, error rate, acceptance probability and trigger in
+  every module is for one comparison. Five at 5% are not five independent 5% risks, and a factorial
+  screening fifteen terms, a plan with six triggers and a portfolio of forty projects are each the
+  same problem. It is stated as a limitation in every document and corrected in none.
+- **Attribute agreement.** Where the measurement is a judgement rather than a number - an inspector
+  calling a part good - every figure in the Control phase is conditional on an agreement rate nobody
+  studied. It is the largest single gap left.
+- **Anything requiring a real dataset.** The generator is the contract: every table is seeded, every
+  parameter is written down, and no employer's or client's data appears anywhere. That closes off
+  process mining on real event logs, and it is not a cost worth arguing about.
+
+## Still open inside the phases
+
+Each wave's section lists its own; the ones that would change more than one module:
+
+- **Unequal group sizes in the power calculation** (wave 2), which is a different calculation rather
+  than a refinement, and which the Improve and Control phases would both use.
+- **Staggered adoption** (wave 7): sites that start at different times, where a two-by-two difference
+  in differences is the wrong shape. The sustain audit inherits the same gap.
+- **The parallel-trends check** (waves 7 and 9), computable from the panels already in the generator,
+  and the assumption the whole attribution rests on.
+- **A control plan as an object** (wave 10): who reacts, at which trigger, with which escalation -
+  the part a plan is actually for, and the part that is not arithmetic.
 
 ## Cross-cutting
 

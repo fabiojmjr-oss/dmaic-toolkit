@@ -21,7 +21,7 @@ table is produced by a seeded generator whose parameters are written down. See
 | [`dmaic.measure`](src/dmaic/measure/README.md) | Measure | Can this measurement system tell the parts apart, is it right, how long does that last, and what does being wrong cost? |
 | [`dmaic.analyze`](src/dmaic/analyze/README.md) | Analyze | How much data does this test need, does it hold the error rate it claims, and can the experiment separate the effects it is being asked about? |
 | [`dmaic.improve`](src/dmaic/improve/README.md) | Improve | How much of this improvement is the project's, was any of it an artefact of how the sites were chosen, and how much of the saving is cash? |
-| [`dmaic.control`](src/dmaic/control/README.md) | Control | Did the gain hold, could the audit have told me otherwise, and what does this sampling plan actually catch? |
+| [`dmaic.control`](src/dmaic/control/README.md) | Control | Did the gain hold, what does this sampling plan catch, and what do the plan's triggers actually promise? |
 
 [`docs/ROADMAP.md`](docs/ROADMAP.md) lists the phases not yet built, and says why the Control
 phase is deliberately narrower than it looks.
@@ -428,6 +428,51 @@ closes — while there is still somebody to argue with about how many sites it g
 later when the answer is due. The arithmetic is wave 2's, unchanged, applied a year earlier than
 anybody applies it.
 
+### Wave 10 — the trigger nobody priced
+
+A control plan is a table of triggers, each of them a hypothesis test run every day for years. The
+plan records who reacts, how, and to whom it escalates — and not the two numbers that decide whether
+reacting is worth anything: how often the trigger fires when nothing is wrong, and how long it takes
+when something is.
+
+**An absolute trigger has a false-alarm rate the measurement system controls.** "React if the daily
+average moves more than 1.00", twenty units a day, within-day spread 2.00:
+
+| Gage | Total sd | False alarms per day | Days between them | Share from the gage | Days to catch a 1.00 shift |
+| --- | --- | --- | --- | --- | --- |
+| no gage error | 2.0000 | 0.1138 | 8.78 | 0% | 2.00 |
+| 16.2% of tolerance | 2.4130 | 0.1900 | 5.26 | **40%** | 1.98 |
+| 63.6% of tolerance | 5.6648 | **0.5767** | **1.73** | **80%** | 1.58 |
+
+A false alarm every 8.78 days becomes one every 1.73, and **80% of those reactions are the
+instrument** — while the detection of a real shift barely moves. The bad gage buys no speed and costs
+five times the reaction workload. The people reacting experience that as a process out of control.
+
+**A relative trigger hides the gage instead.** "React if the move exceeds three sigma of the observed
+spread" — the limit now comes from the data:
+
+| Gage | Limit | False alarms per day | Days to catch a 1.00 shift |
+| --- | --- | --- | --- |
+| no gage error | 1.8974 | **0.0027** | 12.83 |
+| 16.2% of tolerance | 2.2892 | **0.0027** | 21.94 |
+| 63.6% of tolerance | **5.3741** | **0.0027** | **133.43** |
+
+**The false-alarm rate is identical to four decimals whatever the gage** — that is the figure anybody
+checks, and it says the plan is fine. What changes is the reaction: **ten times slower**, for the same
+rate and the same words on the page. The two forms of trigger fail in opposite directions, and there
+is no form of words that escapes the measurement system — only a choice about where it hides.
+
+**And a specification trigger is slow without being silent.** On a process at capability 1.0417 with
+nothing wrong at all, "react when any unit is out of specification" fires every **28.60 days** at
+twenty pieces — about 2.2 reactions a quarter on a process exactly on target — while a one-sigma shift
+takes 3.48 days to surface at twenty pieces and **12.30 days at five**.
+
+**The trade nobody states:** from 107 false alarms a year with a 1.26-day reaction, to one every two
+thousand years with a reaction that takes five. Somebody chose a row when they wrote the plan, and the
+plan does not say which row or why. A control chart is the instrument that makes this trade explicit
+and tunable — it lives in the sibling `oplab.spc` package, and what is priced here are the triggers
+people write *instead* of one.
+
 ## Examples
 
 | Script | What it shows |
@@ -442,13 +487,14 @@ anybody applies it.
 | [`08_was_the_saving_yours.py`](examples/08_was_the_saving_yours.py) | A project that delivered 5.00 per order and reported 10.06, and the money that follows |
 | [`09_the_charter_that_computes.py`](examples/09_the_charter_that_computes.py) | A charter measured from the wrong end of its baseline, towards the wrong end of its target |
 | [`10_did_the_gain_hold.py`](examples/10_did_the_gain_hold.py) | A gain that halved, reported as a gain that grew, and an audit that cannot tell either way |
+| [`11_the_trigger_nobody_priced.py`](examples/11_the_trigger_nobody_priced.py) | Three reaction rules from a control plan, priced as the tests they are |
 
 ## Verification
 
-**252 tests, 97% statement coverage, split by cost.** 215 of them run in about ten seconds, and
-the whole `make check` sequence — linters, type check, coverage and all — in about ten. That is
-what a push is gated on. The remaining 37 re-derive every figure quoted in a README and run every
-example script, in about eleven seconds.
+**272 tests, 97% statement coverage, split by cost.** 231 of them run in about eleven seconds, and
+the whole `make check` sequence — linters, type check, coverage and all — in about thirteen. That is
+what a push is gated on. The remaining 41 re-derive every figure quoted in a README and run every
+example script, in about sixteen seconds.
 
 The gage ANOVA is verified against a 2×2×2 design whose sums of squares are integers (242, 50, 2
 and 8, adding to 302), not only against its own output. Independent property checks confirm that

@@ -16,11 +16,30 @@ Improve phase already showed is inflated by the trend - except that by now the t
 as long to run, so a decaying gain reports as a growing one. A comparison group fixes the direction
 and not the power, and the module prices both.
 
+:mod:`~dmaic.control.plan` asks what the plan's triggers actually promise. A reaction rule is a
+test, run every period, with a false-alarm rate and a detection delay - and a plan records
+neither. Worse, the two ways of writing one fail in opposite directions: an absolute trigger has a
+false-alarm rate the measurement system controls, and a trigger set from observed spread has a
+*detection limit* the measurement system controls while its alarm rate stays put. There is no form
+of words that escapes the gage; there is only a choice about where it hides.
+
 **Control charts are deliberately not here.** Charts, run rules and capability against
 within-subgroup sigma live in the sibling ``oplab.spc`` package. Putting the same code in two
 repositories under one name would read as padding to anyone who opens both.
 """
 
+from .plan import (
+    DEFAULT_SIGMAS,
+    PERIODS_PER_YEAR,
+    RULE_COLUMNS,
+    SPEC_COLUMNS,
+    ReactionRule,
+    alarms_against_delay,
+    capability,
+    compare_gages,
+    rule_from_spread,
+    spec_trigger,
+)
 from .sampling import (
     DECISION_COLUMNS,
     DEFAULT_CONSUMER_RISK,
@@ -49,13 +68,21 @@ __all__ = [
     "DECISION_COLUMNS",
     "DETECTION_COLUMNS",
     "DEFAULT_CONSUMER_RISK",
+    "DEFAULT_SIGMAS",
     "DEFAULT_PRODUCER_RISK",
     "MAX_SAMPLE",
     "OC_COLUMNS",
+    "PERIODS_PER_YEAR",
     "REPORTED_COLUMNS",
     "RETENTION_COLUMNS",
+    "RULE_COLUMNS",
+    "SPEC_COLUMNS",
+    "ReactionRule",
     "SamplingPlan",
     "SustainAudit",
+    "alarms_against_delay",
+    "capability",
+    "compare_gages",
     "decay_detection",
     "inspect_lots",
     "matched_plan",
@@ -64,5 +91,7 @@ __all__ = [
     "plan_for",
     "reported_gain",
     "retention_path",
+    "rule_from_spread",
+    "spec_trigger",
     "sustain_audit",
 ]
