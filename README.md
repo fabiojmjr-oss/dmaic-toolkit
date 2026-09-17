@@ -21,7 +21,7 @@ table is produced by a seeded generator whose parameters are written down. See
 | [`dmaic.measure`](src/dmaic/measure/README.md) | Measure | Can this measurement system tell the parts apart, is it right, how long does that last, and what does being wrong cost? |
 | [`dmaic.analyze`](src/dmaic/analyze/README.md) | Analyze | How much data does this test need, does it hold the error rate it claims, and can the experiment separate the effects it is being asked about? |
 | [`dmaic.improve`](src/dmaic/improve/README.md) | Improve | How much of this improvement is the project's, was any of it an artefact of how the sites were chosen, and how much of the saving is cash? |
-| [`dmaic.control`](src/dmaic/control/README.md) | Control | What does this sampling plan actually catch, what does it let through, and what did the inspection buy? |
+| [`dmaic.control`](src/dmaic/control/README.md) | Control | Did the gain hold, could the audit have told me otherwise, and what does this sampling plan actually catch? |
 
 [`docs/ROADMAP.md`](docs/ROADMAP.md) lists the phases not yet built, and says why the Control
 phase is deliberately narrower than it looks.
@@ -389,6 +389,45 @@ that name no measurand**, which is the share that cannot be verified after the p
 charter's benefit is computed by the same `BenefitCase` the Improve phase audits it with, so the
 promise and the verification cannot disagree about arithmetic — only about reality.
 
+### Wave 9 — did the gain hold?
+
+A project closes with a verified improvement and a control plan. A year later somebody checks, using
+the form every template uses: current months against the original baseline. That is the same
+before-and-after wave 7 shows is inflated by the trend — except the trend has now had **twice as long
+to run**.
+
+Twenty-four sites over thirty-six periods, twelve improved from period thirteen with an effect of
+−5.00 decaying on a one-year half-life, trend −0.40 a period throughout:
+
+| Window | Reported gain | True effect |
+| --- | --- | --- |
+| 13–18 | −9.1599 | −4.3488 |
+| 19–24 | −9.5392 | −3.0750 |
+| 25–30 | −11.0472 | −2.1744 |
+| 31–36 | **−11.5753** | **−1.5375** |
+
+**The reported gain grows by 2.42 while the real effect falls by 2.81.** Nobody fabricated anything —
+the baseline is the agreed baseline and every period between them is another period of trend inside
+the figure. The flattering number is the one the template produces.
+
+**A comparison group fixes the direction**, and both intervals contain the effect that was there:
+
+| Window | True effect | Estimate | Interval |
+| --- | --- | --- | --- |
+| 13–24 | −3.7119 | −4.1721 | −5.7224 to −2.6219 |
+| 25–36 | −1.8560 | −1.7827 | −3.6341 to **+0.0687** |
+
+**But the two intervals overlap completely, so the audit cannot establish that the gain decayed at
+all.** Measured retention 42.73% against a true 50%; measured decay 2.3895; and the smallest decay
+this audit could resolve is **2.5604** against a real decay of 1.8560. Against the decay that
+actually happened the audit has **power 0.5287** — a coin flip.
+
+That is the honest conclusion of a correctly conducted sustain audit here: *it cannot tell*, which is
+not the same as concluding the gain held. It is also an argument for sizing the audit when the project
+closes — while there is still somebody to argue with about how many sites it gets — rather than a year
+later when the answer is due. The arithmetic is wave 2's, unchanged, applied a year earlier than
+anybody applies it.
+
 ## Examples
 
 | Script | What it shows |
@@ -402,13 +441,14 @@ promise and the verification cannot disagree about arithmetic — only about rea
 | [`07_what_the_sampling_plan_guarantees.py`](examples/07_what_the_sampling_plan_guarantees.py) | Five sampling plans on the same two hundred lots, and what each one actually bought |
 | [`08_was_the_saving_yours.py`](examples/08_was_the_saving_yours.py) | A project that delivered 5.00 per order and reported 10.06, and the money that follows |
 | [`09_the_charter_that_computes.py`](examples/09_the_charter_that_computes.py) | A charter measured from the wrong end of its baseline, towards the wrong end of its target |
+| [`10_did_the_gain_hold.py`](examples/10_did_the_gain_hold.py) | A gain that halved, reported as a gain that grew, and an audit that cannot tell either way |
 
 ## Verification
 
-**233 tests, 96% statement coverage, split by cost.** 199 of them run in about nine seconds, and
-the whole `make check` sequence — linters, type check, coverage and all — in about eleven. That is
-what a push is gated on. The remaining 34 re-derive every figure quoted in a README and run every
-example script, in about twelve seconds.
+**252 tests, 97% statement coverage, split by cost.** 215 of them run in about ten seconds, and
+the whole `make check` sequence — linters, type check, coverage and all — in about ten. That is
+what a push is gated on. The remaining 37 re-derive every figure quoted in a README and run every
+example script, in about eleven seconds.
 
 The gage ANOVA is verified against a 2×2×2 design whose sums of squares are integers (242, 50, 2
 and 8, adding to 302), not only against its own output. Independent property checks confirm that

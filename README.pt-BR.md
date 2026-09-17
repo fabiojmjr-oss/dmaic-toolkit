@@ -22,7 +22,7 @@ escritos. Ver [`DISCLAIMER.md`](DISCLAIMER.md).
 | [`dmaic.measure`](src/dmaic/measure/README.md) | Measure | Este sistema de medição distingue as peças, ele está certo, quanto tempo isso dura, e quanto custa estar errado? |
 | [`dmaic.analyze`](src/dmaic/analyze/README.md) | Analyze | De quanto dado este teste precisa, ele mantém a taxa de erro que alega, e o experimento consegue separar os efeitos sobre os quais está sendo perguntado? |
 | [`dmaic.improve`](src/dmaic/improve/README.md) | Improve | Quanto desta melhoria é do projeto, alguma parte foi artefato de como os sites foram escolhidos, e quanto da economia é caixa? |
-| [`dmaic.control`](src/dmaic/control/README.md) | Control | O que este plano de amostragem de fato pega, o que ele deixa passar, e o que a inspeção comprou? |
+| [`dmaic.control`](src/dmaic/control/README.md) | Control | O ganho se sustentou, a auditoria conseguiria dizer o contrário, e o que este plano de amostragem de fato pega? |
 
 O [`docs/ROADMAP.md`](docs/ROADMAP.md) lista as fases ainda não construídas, e explica por que a
 fase Control é deliberadamente mais estreita do que parece.
@@ -389,6 +389,45 @@ mensurando**, que é a parcela impossível de verificar depois que o projeto enc
 charter é calculado pelo mesmo `BenefitCase` com que a fase Improve o audita, então a promessa e a
 verificação não podem discordar de aritmética — só de realidade.
 
+### Onda 9 — o ganho se sustentou?
+
+Um projeto encerra com melhoria verificada e plano de controle. Um ano depois alguém verifica, na
+forma que todo template usa: meses atuais contra o baseline original. É o mesmo antes-e-depois que a
+onda 7 mostra ser inflado pela tendência — só que agora a tendência teve **o dobro do tempo para
+correr**.
+
+Vinte e quatro sites ao longo de trinta e seis períodos, doze melhorados a partir do período treze
+com efeito de −5,00 decaindo com meia-vida de um ano, tendência de −0,40 por período todo o tempo:
+
+| Janela | Ganho reportado | Efeito real |
+| --- | --- | --- |
+| 13–18 | −9,1599 | −4,3488 |
+| 19–24 | −9,5392 | −3,0750 |
+| 25–30 | −11,0472 | −2,1744 |
+| 31–36 | **−11,5753** | **−1,5375** |
+
+**O ganho reportado cresce 2,42 enquanto o efeito real cai 2,81.** Ninguém fabricou nada — o baseline
+é o baseline acordado e cada período entre eles é mais um período de tendência dentro da cifra. A
+cifra lisonjeira é a que o template produz.
+
+**Um grupo de comparação corrige a direção**, e os dois intervalos contêm o efeito que existia:
+
+| Janela | Efeito real | Estimativa | Intervalo |
+| --- | --- | --- | --- |
+| 13–24 | −3,7119 | −4,1721 | −5,7224 a −2,6219 |
+| 25–36 | −1,8560 | −1,7827 | −3,6341 a **+0,0687** |
+
+**Mas os dois intervalos se sobrepõem completamente, então a auditoria não consegue estabelecer que o
+ganho decaiu.** Retenção medida 42,73% contra uma real de 50%; decadência medida 2,3895; e a menor
+decadência que esta auditoria resolveria é **2,5604** contra uma real de 1,8560. Contra a decadência
+que de fato aconteceu, a auditoria tem **poder 0,5287** — cara ou coroa.
+
+Essa é a conclusão honesta de uma auditoria de sustentação bem conduzida aqui: *ela não consegue
+dizer*, o que não é o mesmo que concluir que o ganho se sustentou. E é argumento para dimensionar a
+auditoria quando o projeto encerra — enquanto ainda há alguém com quem discutir quantos sites ela
+recebe — em vez de um ano depois, quando a resposta é devida. A aritmética é a da onda 2, inalterada,
+aplicada um ano antes do que todo mundo aplica.
+
 ## Exemplos
 
 | Script | O que mostra |
@@ -402,13 +441,14 @@ verificação não podem discordar de aritmética — só de realidade.
 | [`07_what_the_sampling_plan_guarantees.py`](examples/07_what_the_sampling_plan_guarantees.py) | Cinco planos de amostragem nos mesmos duzentos lotes, e o que cada um de fato comprou |
 | [`08_was_the_saving_yours.py`](examples/08_was_the_saving_yours.py) | Um projeto que entregou 5,00 por pedido e reportou 10,06, e o dinheiro que vem disso |
 | [`09_the_charter_that_computes.py`](examples/09_the_charter_that_computes.py) | Um charter medido da ponta errada do baseline, em direção à ponta errada da meta |
+| [`10_did_the_gain_hold.py`](examples/10_did_the_gain_hold.py) | Um ganho que caiu à metade, reportado como um ganho crescente, e uma auditoria que não consegue dizer |
 
 ## Verificação
 
-**233 testes, 96% de cobertura de statements, separados por custo.** 199 deles rodam em cerca de
-nove segundos, e a sequência inteira do `make check` — linters, tipos, cobertura e tudo — em cerca de
-onze. É isso que barra um push. Os 34 restantes re-derivam toda figura citada em um README e rodam
-todo script de exemplo, em cerca de doze segundos.
+**252 testes, 97% de cobertura de statements, separados por custo.** 215 deles rodam em cerca de
+dez segundos, e a sequência inteira do `make check` — linters, tipos, cobertura e tudo — em cerca de
+dez. É isso que barra um push. Os 37 restantes re-derivam toda figura citada em um README e rodam
+todo script de exemplo, em cerca de onze segundos.
 
 A ANOVA do gage é verificada contra um desenho 2×2×2 cujas somas de quadrados são inteiras (242,
 50, 2 e 8, fechando em 302), e não apenas contra a própria saída. Verificações independentes de

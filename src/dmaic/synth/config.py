@@ -612,3 +612,70 @@ PANELS = (
         project_cost=250000.0,
     ),
 )
+
+
+@dataclass(frozen=True)
+class SustainProfile:
+    """A gain that was real, and that decays once the project team leaves.
+
+    The panel runs long enough to audit twice: a window at closure and a window a year later. The
+    decay is exponential with a declared half-life, which is a model rather than a law - what
+    matters is that the effect at the second audit is half the effect at the first, and that both
+    are known.
+
+    Attributes:
+        process: Label for the measurand.
+        unit: Unit of measure.
+        sites: Sites measured.
+        periods: Periods each site is measured for.
+        split: Last period before the improvement.
+        treated: Sites the project touched, chosen at random.
+        level: Mean performance across sites.
+        site_sd: Permanent spread between sites.
+        trend: Change per period common to every site. It keeps running after the project closes,
+            which is what makes a sustain report look better every quarter.
+        noise: Period-to-period spread within a site.
+        effect_at_close: The effect in the first period after the split, signed.
+        half_life: Periods for the effect to halve. A control plan is the thing that is supposed
+            to make this infinite.
+        close_window: Periods averaged for the audit at closure.
+        audit_window: Periods averaged for the audit a year later.
+    """
+
+    process: str
+    unit: str
+    sites: int
+    periods: int
+    split: int
+    treated: int
+    level: float
+    site_sd: float
+    trend: float
+    noise: float
+    effect_at_close: float
+    half_life: float
+    close_window: int
+    audit_window: int
+
+
+# One panel, three years long. The half-life is a year, so the second audit sees half of what the
+# first did - and the trend of -0.40 a period keeps running the whole time, which is what lets a
+# sustain report show a growing gain over a shrinking one.
+SUSTAINS = (
+    SustainProfile(
+        process="custo de processamento por pedido",
+        unit="BRL",
+        sites=24,
+        periods=36,
+        split=12,
+        treated=12,
+        level=100.0,
+        site_sd=8.0,
+        trend=-0.40,
+        noise=6.0,
+        effect_at_close=-5.00,
+        half_life=12.0,
+        close_window=12,
+        audit_window=12,
+    ),
+)

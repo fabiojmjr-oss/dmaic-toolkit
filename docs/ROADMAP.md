@@ -446,7 +446,55 @@ from the same panel and is the assumption wave 7's estimator rests on. Disjointn
 which `overattribution` only catches when the double counting pushes the total past the gap. And the
 stakeholder side of Define, which is not arithmetic and is not pretended to be here.
 
-## Wave 9 — Control: the rest of the plan
+## Wave 9 — Control: did the gain hold?
+
+**Sustaining verification** *(complete —
+[`dmaic.control.sustain`](../src/dmaic/control/README-sustain.md))*. The gain audited twice against a
+comparison group, the report a template actually produces, and the power the audit had to see the
+difference between the two.
+
+A project closes with a verified improvement and a control plan. A year later somebody checks, in the
+form every template uses: current months against the original baseline. That is the before-and-after
+wave 7 already showed is inflated by the trend, except the trend has now had twice as long to run.
+
+- **The reported gain grows by 2.42 while the real effect falls by 2.81.** −9.16 at the first quarter
+  after closure to −11.58 two years later, against a true effect falling from −4.35 to −1.54. Nobody
+  fabricated anything: the baseline is the agreed baseline, and every period between it and the
+  window is another period of trend inside the figure. The flattering number is the one the template
+  produces, which is why it is the one in the pack.
+- **A comparison group fixes the direction and both intervals contain the truth.** −4.1721
+  (−5.7224 to −2.6219) at closure against a true −3.7119, and −1.7827 (−3.6341 to +0.0687) a year
+  later against a true −1.8560.
+- **And the two intervals overlap completely, so the audit cannot establish that the gain decayed at
+  all.** Measured retention 42.73% against a true 50%, measured decay 2.3895, and the smallest decay
+  this audit could resolve is 2.5604 — larger than the 1.8560 that happened, and larger even than
+  the audit's own overestimate of it. Against the real decay the audit has power **0.5287**.
+- **The honest conclusion of a correctly conducted sustain audit is therefore "it cannot tell"**,
+  which is not the same as concluding that the gain held, and which is what the report claiming
+  −11.58 has replaced. The remedy is not a better estimator; it is sizing the audit when the project
+  closes, using wave 2's arithmetic unchanged, a year before anybody applies it.
+
+**A defect in wave 2, found from wave 9.** `power_two_means` returned `nan` for an effect large
+relative to a tiny standard error at two observations per group: at df=2 and a noncentrality of 25,
+`scipy`'s noncentral t returns `nan` for the tail *away* from the effect while the near tail is 1.0 to
+fourteen figures. The power of a test against an effect that large is one, and returning `nan` made
+`detectable_difference` fail while its solver walked the bracket outwards. Each tail is now replaced
+by its limit for a large noncentrality of that sign. Two years of published power figures are
+unaffected - the test asserts that - because nothing that was already a number changed.
+
+**And a fifth instance of the zero-spread limit.** Sites whose changes do not vary at all resolve any
+decay, so `sustain_audit` takes the limit rather than handing a zero standard deviation to the solver
+- the same limit `dmaic._limits` takes for a fitted standard error and `BiasStudy.detectable_bias`
+takes for a flat set of readings. The solvers stay strict, because outside those limits a zero spread
+is a mistake.
+
+**Still to build in this phase:** a control plan as an object - who reacts to what, at which trigger,
+and whether that trigger's own false-alarm rate was ever computed. Sequential monitoring, which needs
+a stopping rule and spends its alpha differently from two fixed windows. And distinguishing a decay
+from a practice that spread to the comparison group, which this module explicitly cannot do and which
+is the difference between a failure and the best outcome available.
+
+## Wave 10 — Control: the rest of the plan
 
 *Not built.* Control plans as documents that carry arithmetic, and sustaining verification —
 whether the gain held, measured against a counterfactual rather than against last quarter.

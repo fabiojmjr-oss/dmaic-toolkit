@@ -233,3 +233,20 @@ def test_a_hopeless_effect_is_refused_rather_than_answered() -> None:
     """At some point the honest answer is that a study is the wrong instrument."""
     with pytest.raises(ValueError, match="too small relative to the noise"):
         sample_size_two_means(1e-9, 1.0)
+
+
+def test_a_huge_effect_on_two_observations_per_group_still_gives_a_power() -> None:
+    """scipy returns nan for the far tail at small degrees of freedom, and the limit is not nan.
+
+    At two observations per group and an effect of twenty-five standard errors, the noncentral t's
+    lower tail comes back as nan while its upper tail is 1.0 to fourteen figures. The power of a
+    test against an effect that large is one, and returning nan instead made
+    ``detectable_difference`` fail while its solver walked the bracket outwards - which is how this
+    was found, from a sustain audit on two sites a side.
+    """
+    assert power_two_means(2, 5.0, 0.2) == pytest.approx(1.0)
+    assert power_two_means(2, -5.0, 0.2) == pytest.approx(1.0)
+    # And the solver that walks into it now returns instead of raising.
+    assert detectable_difference(2, 0.2) == pytest.approx(1.130698, abs=5e-6)
+    # The ordinary cases are untouched: nothing here changes a power that was already a number.
+    assert power_two_means(2, 1.0, 0.2) == pytest.approx(0.7191805, abs=5e-7)
